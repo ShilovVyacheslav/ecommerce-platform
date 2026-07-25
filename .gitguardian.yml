@@ -1,0 +1,7 @@
+version: 2
+
+secret:
+  ignored_paths:
+    - '**/application-local.yml'
+    - '**/application-docker.yml'
+    - '**/src/test/resources/application.yml'
