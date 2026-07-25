@@ -1,0 +1,18 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/ecommerce-platform?currentSchema=user_service
+    username: postgres
+    password: postgres
+  flyway:
+    url: ${spring.datasource.url}
+    user: ${spring.datasource.username}
+    password: ${spring.datasource.password}
+    schemas: user_service
+  security:
+    jwt:
+      secret-key: 6e8c55921d7d4a2548201d5a1221db97794b71520a0a963f484322f0e06d2b83
+      access-expiration: 600
+      refresh-expiration: 86400
+
+server:
+  port: 8081

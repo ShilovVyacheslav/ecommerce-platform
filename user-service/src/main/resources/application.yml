@@ -1,19 +1,31 @@
 spring:
+  main:
+    banner-mode: off
   application:
     name: user-service
   datasource:
-    url: jdbc:postgresql://localhost:5432/ecommerce-platform
-    username: postgres
-    password: postgres
+    url: ${SPRING_DATASOURCE_URL}
+    username: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
   flyway:
-    url: ${spring.datasource.url}
-    user: ${spring.datasource.username}
-    password: ${spring.datasource.password}
+    url: ${SPRING_FLYWAY_URL}
+    user: ${SPRING_FLYWAY_USER}
+    password: ${SPRING_FLYWAY_PASSWORD}
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: validate
+    open-in-view: false
   security:
     jwt:
-      secretKey: 123
-      accessExpiration: 50400
-      refreshExpiration: 50400
+      secret-key: ${SECURITY_JWT_SECRET_KEY}
+      access-expiration: ${SECURITY_JWT_ACCESS_EXPIRATION}
+      refresh-expiration: ${SECURITY_JWT_REFRESH_EXPIRATION}
+
+server:
+  port: ${SERVER_PORT}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
