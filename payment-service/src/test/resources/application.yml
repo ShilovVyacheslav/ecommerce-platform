@@ -12,7 +12,7 @@ spring:
   flyway:
     enabled: false
   security:
-    jwt:
-      secret-key: 6e8c55921d7d4a2548201d5a1221db97794b71520a0a963f484322f0e06d2b83
-      access-expiration: 600
-      refresh-expiration: 86400
+    oauth2:
+      resourceserver:
+        jwt:
+          jwk-set-uri: http://localhost:8081/.well-known/jwks.json

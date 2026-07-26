@@ -20,3 +20,9 @@ spring:
 
 server:
   port: ${SERVER_PORT}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
