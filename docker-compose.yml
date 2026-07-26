@@ -1,0 +1,78 @@
+name: ecommerce-platform
+
+services:
+  postgres-user:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: user_service
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres-user-data:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres -d user_service" ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  postgres-payment:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: payment_service
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5434:5432"
+    volumes:
+      - postgres-payment-data:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres -d payment_service" ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  user-service:
+    build:
+      context: .
+      dockerfile: user-service/Dockerfile
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+    ports:
+      - "8081:8081"
+    depends_on:
+      postgres-user:
+        condition: service_healthy
+
+  payment-service:
+    build:
+      context: .
+      dockerfile: payment-service/Dockerfile
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+    ports:
+      - "8082:8082"
+    depends_on:
+      postgres-payment:
+        condition: service_healthy
+      user-service:
+        condition: service_healthy
+
+  api-gateway:
+    build:
+      context: .
+      dockerfile: api-gateway/Dockerfile
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+    ports:
+      - "8080:8080"
+    depends_on:
+      user-service:
+        condition: service_healthy
+      payment-service:
+        condition: service_healthy
+
+volumes:
+  postgres-user-data:
+  postgres-payment-data:

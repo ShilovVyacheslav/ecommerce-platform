@@ -1,0 +1,32 @@
+spring:
+  main:
+    banner-mode: off
+  application:
+    name: user-service
+  datasource:
+    url: ${SPRING_DATASOURCE_URL}
+    username: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
+  flyway:
+    url: ${SPRING_FLYWAY_URL}
+    user: ${SPRING_FLYWAY_USER}
+    password: ${SPRING_FLYWAY_PASSWORD}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+  security:
+    jwt:
+      private-key-location: ${SECURITY_JWT_PRIVATE_KEY_LOCATION}
+      public-key-location: ${SECURITY_JWT_PUBLIC_KEY_LOCATION}
+      access-expiration: ${SECURITY_JWT_ACCESS_EXPIRATION}
+      refresh-expiration: ${SECURITY_JWT_REFRESH_EXPIRATION}
+
+server:
+  port: ${SERVER_PORT}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
