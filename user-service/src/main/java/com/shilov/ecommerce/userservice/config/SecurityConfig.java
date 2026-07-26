@@ -43,12 +43,14 @@ import java.util.List;
 public class SecurityConfig {
 
     private static final String[] AUTH_WHITE_LIST = {
+            "/swagger-ui/**",
+            "/swagger-resources/**",
+            "/actuator/**",
+            "/css/**",
+            "/js/**",
             "/api/v1/auth/register",
             "/api/v1/auth/login",
             "/api/v1/auth/refresh",
-            "/api/v1/auth/logout",
-            "/actuator/health/**",
-            "/actuator/info"
     };
 
     JwtProps jwtProps;
