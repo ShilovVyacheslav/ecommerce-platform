@@ -6,14 +6,11 @@ import com.shilov.ecommerce.userservice.service.JwtService;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.security.Keys;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 
-import javax.crypto.SecretKey;
-import java.security.Key;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
@@ -95,7 +92,7 @@ public class JwtServiceImpl implements JwtService {
 
     private Claims extractAllClaims(String token) {
         return Jwts.parser()
-                .verifyWith((SecretKey) getSigningKey())
+                .verifyWith(jwtProps.getPublicKeyLocation())
                 .build()
                 .parseSignedClaims(token)
                 .getPayload();
@@ -113,12 +110,8 @@ public class JwtServiceImpl implements JwtService {
                 .subject(securityUser.getUsername())
                 .issuedAt(new Date(System.currentTimeMillis()))
                 .expiration(new Date(System.currentTimeMillis() + jwtProps.getAccessExpiration() * 1000))
-                .signWith(getSigningKey())
+                .signWith(jwtProps.getPrivateKeyLocation(), Jwts.SIG.RS256)
                 .compact();
-    }
-
-    private Key getSigningKey() {
-        return Keys.hmacShaKeyFor(jwtProps.getSecretKey().getBytes());
     }
 
 }

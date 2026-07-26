@@ -2,7 +2,7 @@ spring:
   main:
     banner-mode: off
   application:
-    name: user-service
+    name: payment-service
   datasource:
     url: ${SPRING_DATASOURCE_URL}
     username: ${SPRING_DATASOURCE_USERNAME}
@@ -16,11 +16,10 @@ spring:
       ddl-auto: validate
     open-in-view: false
   security:
-    jwt:
-      private-key-location: ${SECURITY_JWT_PRIVATE_KEY_LOCATION}
-      public-key-location: ${SECURITY_JWT_PUBLIC_KEY_LOCATION}
-      access-expiration: ${SECURITY_JWT_ACCESS_EXPIRATION}
-      refresh-expiration: ${SECURITY_JWT_REFRESH_EXPIRATION}
+    oauth2:
+      resourceserver:
+        jwt:
+          jwk-set-uri: ${SECURITY_JWT_JWKS_URI}
 
 server:
   port: ${SERVER_PORT}

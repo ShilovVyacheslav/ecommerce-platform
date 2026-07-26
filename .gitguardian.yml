@@ -5,3 +5,4 @@ secret:
     - '**/application-local.yml'
     - '**/application-docker.yml'
     - '**/src/test/resources/application.yml'
+    - '**/resources/keys/local-*.pem'

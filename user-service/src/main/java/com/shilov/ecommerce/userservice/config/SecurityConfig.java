@@ -1,11 +1,10 @@
 package com.shilov.ecommerce.userservice.config;
 
 import com.shilov.ecommerce.userservice.config.props.JwtProps;
-import com.shilov.ecommerce.userservice.filter.JwtAuthFilter;
-import io.jsonwebtoken.security.Keys;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import org.springframework.boot.actuate.autoconfigure.security.servlet.EndpointRequest;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -18,22 +17,15 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.oauth2.core.OAuth2TokenValidator;
-import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
-import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.oauth2.jose.jws.SignatureAlgorithm;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtTimestampValidator;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-import org.springframework.web.cors.CorsConfiguration;
-import org.springframework.web.cors.CorsConfigurationSource;
-import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.time.Duration;
-import java.util.List;
 
 @Configuration
 @EnableWebSecurity
@@ -45,9 +37,7 @@ public class SecurityConfig {
     private static final String[] AUTH_WHITE_LIST = {
             "/swagger-ui/**",
             "/swagger-resources/**",
-            "/actuator/**",
-            "/css/**",
-            "/js/**",
+            "/.well-known/jwks.json",
             "/api/v1/auth/register",
             "/api/v1/auth/login",
             "/api/v1/auth/refresh",
@@ -56,35 +46,29 @@ public class SecurityConfig {
     JwtProps jwtProps;
 
     private final UserDetailsService userDetailsService;
-    private final JwtAuthFilter jwtAuthFilter;
 
     @Bean
     public SecurityFilterChain securityFilterChain(final HttpSecurity http) throws Exception {
         http
-                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(auths -> auths
+                        .requestMatchers(EndpointRequest.toAnyEndpoint()).permitAll()
                         .requestMatchers(AUTH_WHITE_LIST).permitAll()
                         .anyRequest().authenticated())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .oauth2ResourceServer(oauth2ResourceServer -> oauth2ResourceServer
-                        .jwt(jwt -> jwt
-                                .decoder(jwtDecoder())
-                                .jwtAuthenticationConverter(jwtAuthenticationConverter())
-                        )
-                )
-                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
+                        .jwt(jwt -> jwt.decoder(jwtDecoder())
+                                .jwtAuthenticationConverter(jwtAuthenticationConverter())));
         return http.build();
     }
 
     @Bean
     public JwtDecoder jwtDecoder() {
         NimbusJwtDecoder decoder = NimbusJwtDecoder
-                .withSecretKey(Keys.hmacShaKeyFor(jwtProps.getSecretKey().getBytes()))
-                .macAlgorithm(MacAlgorithm.HS512)
+                .withPublicKey(jwtProps.getPublicKeyLocation())
+                .signatureAlgorithm(SignatureAlgorithm.RS256)
                 .build();
-        OAuth2TokenValidator<Jwt> validator = new JwtTimestampValidator(Duration.ZERO);
-        decoder.setJwtValidator(validator);
+        decoder.setJwtValidator(new JwtTimestampValidator(Duration.ZERO));
         return decoder;
     }
 
@@ -114,19 +98,6 @@ public class SecurityConfig {
         JwtAuthenticationConverter jwtConverter = new JwtAuthenticationConverter();
         jwtConverter.setJwtGrantedAuthoritiesConverter(converter);
         return jwtConverter;
-    }
-
-    @Bean
-    public CorsConfigurationSource corsConfigurationSource() {
-        CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOriginPatterns(List.of("*"));
-        config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        config.setAllowedHeaders(List.of("Authorization", "Content-Type"));
-        config.setAllowCredentials(true);
-
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", config);
-        return source;
     }
 
 }

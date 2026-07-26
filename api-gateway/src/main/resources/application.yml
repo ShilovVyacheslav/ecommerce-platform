@@ -1,0 +1,22 @@
+spring:
+  application:
+    name: api-gateway
+  cloud:
+    gateway:
+      routes:
+        - id: user-service
+          uri: ${USER_SERVICE_URL}
+          predicates:
+            - Path=/api/v1/auth/**, /api/v1/users/**
+        - id: payment-service
+          uri: ${PAYMENT_SERVICE_URL}
+          predicates:
+            - Path=/api/v1/payments/**
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          jwk-set-uri: ${SECURITY_JWT_JWKS_URI}
+
+server:
+  port: ${SERVER_PORT}
