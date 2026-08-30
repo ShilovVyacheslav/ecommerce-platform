@@ -8,9 +8,9 @@ spring:
     username: ${SPRING_DATASOURCE_USERNAME}
     password: ${SPRING_DATASOURCE_PASSWORD}
   flyway:
-    url: ${SPRING_FLYWAY_URL}
-    user: ${SPRING_FLYWAY_USER}
-    password: ${SPRING_FLYWAY_PASSWORD}
+    url: ${spring.datasource.url}
+    user: ${spring.datasource.username}
+    password: ${spring.datasource.password}
   jpa:
     hibernate:
       ddl-auto: validate
@@ -23,6 +23,11 @@ spring:
 
 server:
   port: ${SERVER_PORT}
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_URL}
 
 management:
   endpoints:

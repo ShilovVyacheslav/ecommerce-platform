@@ -6,3 +6,4 @@ secret:
     - '**/application-docker.yml'
     - '**/src/test/resources/application.yml'
     - '**/resources/keys/*.pem'
+    - '**/.env.docker.example'

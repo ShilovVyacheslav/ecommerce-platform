@@ -1,18 +1,33 @@
 name: ecommerce-platform
 
+x-common-env: &common-env
+  EUREKA_URL: ${EUREKA_URL}
+
 services:
+  discovery-server:
+    build:
+      context: .
+      dockerfile: discovery-server/Dockerfile
+      args:
+        SERVER_PORT: ${DISCOVERY_SERVER_PORT:?DISCOVERY_SERVER_PORT is not set}
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SERVER_PORT: ${DISCOVERY_SERVER_PORT}
+    ports:
+      - "${DISCOVERY_SERVER_PORT}:${DISCOVERY_SERVER_PORT}"
+
   postgres-user:
     image: postgres:17
     environment:
-      POSTGRES_DB: user_service
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: ${USER_DB}
+      POSTGRES_USER: ${USER_DB_USER}
+      POSTGRES_PASSWORD: ${USER_DB_PASSWORD}
     ports:
-      - "5433:5432"
+      - "${POSTGRES_USER_PORT}:5432"
     volumes:
       - postgres-user-data:/var/lib/postgresql/data
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U postgres -d user_service" ]
+      test: [ "CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}" ]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -20,15 +35,59 @@ services:
   postgres-payment:
     image: postgres:17
     environment:
-      POSTGRES_DB: payment_service
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: ${PAYMENT_DB}
+      POSTGRES_USER: ${PAYMENT_DB_USER}
+      POSTGRES_PASSWORD: ${PAYMENT_DB_PASSWORD}
     ports:
-      - "5434:5432"
+      - "${POSTGRES_PAYMENT_PORT}:5432"
     volumes:
       - postgres-payment-data:/var/lib/postgresql/data
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U postgres -d payment_service" ]
+      test: [ "CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}" ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  postgres-order:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: ${ORDER_DB}
+      POSTGRES_USER: ${ORDER_DB_USER}
+      POSTGRES_PASSWORD: ${ORDER_DB_PASSWORD}
+    ports:
+      - "${POSTGRES_ORDER_PORT}:5432"
+    volumes:
+      - postgres-order-data:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}" ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  mongo-product:
+    image: mongo:7
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${PRODUCT_MONGO_USER}
+      MONGO_INITDB_ROOT_PASSWORD: ${PRODUCT_MONGO_PASSWORD}
+    ports:
+      - "${PRODUCT_MONGO_PORT}:27017"
+    volumes:
+      - mongo-product-data:/data/db
+    healthcheck:
+      test: [ "CMD-SHELL", "mongosh --quiet --eval \"db.adminCommand('ping')\" -u $${MONGO_INITDB_ROOT_USERNAME} -p $${MONGO_INITDB_ROOT_PASSWORD} --authenticationDatabase admin | grep -q 'ok.*1'" ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+    command: redis-server --requirepass ${REDIS_PASSWORD}
+    ports:
+      - "${REDIS_PORT}:6379"
+    healthcheck:
+      test: [ "CMD-SHELL", "redis-cli -a $$REDIS_PASSWORD ping | grep PONG" ]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -37,24 +96,89 @@ services:
     build:
       context: .
       dockerfile: user-service/Dockerfile
+      args:
+        SERVER_PORT: ${USER_SERVICE_PORT:?USER_SERVICE_PORT is not set}
     environment:
+      <<: *common-env
       SPRING_PROFILES_ACTIVE: docker
+      SERVER_PORT: ${USER_SERVICE_PORT}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-user:5432/${USER_DB}
+      SPRING_DATASOURCE_USERNAME: ${USER_DB_USER}
+      SPRING_DATASOURCE_PASSWORD: ${USER_DB_PASSWORD}
     ports:
-      - "8081:8081"
+      - "${USER_SERVICE_PORT}:${USER_SERVICE_PORT}"
     depends_on:
       postgres-user:
+        condition: service_healthy
+      discovery-server:
         condition: service_healthy
 
   payment-service:
     build:
       context: .
       dockerfile: payment-service/Dockerfile
+      args:
+        SERVER_PORT: ${PAYMENT_SERVICE_PORT:?PAYMENT_SERVICE_PORT is not set}
     environment:
+      <<: *common-env
       SPRING_PROFILES_ACTIVE: docker
+      SERVER_PORT: ${PAYMENT_SERVICE_PORT}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-payment:5432/${PAYMENT_DB}
+      SPRING_DATASOURCE_USERNAME: ${PAYMENT_DB_USER}
+      SPRING_DATASOURCE_PASSWORD: ${PAYMENT_DB_PASSWORD}
+      SECURITY_JWT_JWKS_URI: ${SECURITY_JWT_JWKS_URI}
     ports:
-      - "8082:8082"
+      - "${PAYMENT_SERVICE_PORT}:${PAYMENT_SERVICE_PORT}"
     depends_on:
       postgres-payment:
+        condition: service_healthy
+      discovery-server:
+        condition: service_healthy
+      user-service:
+        condition: service_healthy
+
+  product-service:
+    build:
+      context: .
+      dockerfile: product-service/Dockerfile
+      args:
+        SERVER_PORT: ${PRODUCT_SERVICE_PORT:?PRODUCT_SERVICE_PORT is not set}
+    environment:
+      <<: *common-env
+      SPRING_PROFILES_ACTIVE: docker
+      SERVER_PORT: ${PRODUCT_SERVICE_PORT}
+      SPRING_DATA_MONGODB_URI: mongodb://${PRODUCT_MONGO_USER}:${PRODUCT_MONGO_PASSWORD}@mongo-product:27017/product_service?authSource=admin
+      SECURITY_JWT_JWKS_URI: ${SECURITY_JWT_JWKS_URI}
+    ports:
+      - "${PRODUCT_SERVICE_PORT}:${PRODUCT_SERVICE_PORT}"
+    depends_on:
+      mongo-product:
+        condition: service_healthy
+      discovery-server:
+        condition: service_healthy
+      user-service:
+        condition: service_healthy
+
+  order-service:
+    build:
+      context: .
+      dockerfile: order-service/Dockerfile
+      args:
+        SERVER_PORT: ${ORDER_SERVICE_PORT:?ORDER_SERVICE_PORT is not set}
+    environment:
+      <<: *common-env
+      SPRING_PROFILES_ACTIVE: docker
+      SERVER_PORT: ${ORDER_SERVICE_PORT}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-order:5432/${ORDER_DB}
+      SPRING_DATASOURCE_USERNAME: ${ORDER_DB_USER}
+      SPRING_DATASOURCE_PASSWORD: ${ORDER_DB_PASSWORD}
+      SECURITY_JWT_JWKS_URI: ${SECURITY_JWT_JWKS_URI}
+    ports:
+      - "${ORDER_SERVICE_PORT}:${ORDER_SERVICE_PORT}"
+    depends_on:
+      postgres-order:
+        condition: service_healthy
+      discovery-server:
         condition: service_healthy
       user-service:
         condition: service_healthy
@@ -63,16 +187,34 @@ services:
     build:
       context: .
       dockerfile: api-gateway/Dockerfile
+      args:
+        SERVER_PORT: ${API_GATEWAY_PORT:?API_GATEWAY_PORT is not set}
     environment:
+      <<: *common-env
       SPRING_PROFILES_ACTIVE: docker
+      SERVER_PORT: ${API_GATEWAY_PORT}
+      SECURITY_JWT_JWKS_URI: ${SECURITY_JWT_JWKS_URI}
+      REDIS_HOST: redis
+      REDIS_PORT: ${REDIS_PORT}
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
     ports:
-      - "8080:8080"
+      - "${API_GATEWAY_PORT}:${API_GATEWAY_PORT}"
     depends_on:
+      discovery-server:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
       user-service:
         condition: service_healthy
       payment-service:
+        condition: service_healthy
+      product-service:
+        condition: service_healthy
+      order-service:
         condition: service_healthy
 
 volumes:
   postgres-user-data:
   postgres-payment-data:
+  postgres-order-data:
+  mongo-product-data:

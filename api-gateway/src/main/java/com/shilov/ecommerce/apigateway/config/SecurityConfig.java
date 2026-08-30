@@ -25,7 +25,7 @@ public class SecurityConfig {
         http
                 .csrf(ServerHttpSecurity.CsrfSpec::disable)
                 .authorizeExchange(auths -> auths
-                        .matchers(EndpointRequest.toAnyEndpoint()).permitAll()
+                        .matchers(EndpointRequest.to("health", "info")).permitAll()
                         .pathMatchers(PUBLIC_PATHS).permitAll()
                         .anyExchange().authenticated())
                 .oauth2ResourceServer(oauth2 -> oauth2

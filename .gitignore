@@ -1,37 +1,34 @@
-HELP.md
-.gradle
-build/
-!gradle/wrapper/gradle-wrapper.jar
-!**/src/main/**/build/
-!**/src/test/**/build/
+# Version Control
+.git
+.gitattributes
 
-### STS ###
-.apt_generated
-.classpath
-.factorypath
-.project
-.settings
-.springBeans
-.sts4-cache
-bin/
-!**/src/main/**/bin/
-!**/src/test/**/bin/
-
-### IntelliJ IDEA ###
-.idea
-*.iws
+# IDE & Editors
+.idea/
+.vscode/
 *.iml
 *.ipr
+*.iws
 out/
-!**/src/main/**/out/
-!**/src/test/**/out/
 
-### NetBeans ###
-/nbproject/private/
-/nbbuild/
-/dist/
-/nbdist/
-/.nb-gradle/
+# JWT keys
+**/keys/*.pem
+!**/src/test/resources/keys/*.pem
 
-### VS Code ###
-.vscode/
+# Gradle / Java build output
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+
+# Documentation
+HELP.md
+
+# Environment Files
+.env
+.env.docker
+!.env.docker.example
+
+# OS & System Files
+.DS_Store
+Thumbs.db
+Desktop.ini
+*.log

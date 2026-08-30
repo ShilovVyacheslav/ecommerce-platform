@@ -8,9 +8,9 @@ spring:
     username: ${SPRING_DATASOURCE_USERNAME}
     password: ${SPRING_DATASOURCE_PASSWORD}
   flyway:
-    url: ${SPRING_FLYWAY_URL}
-    user: ${SPRING_FLYWAY_USER}
-    password: ${SPRING_FLYWAY_PASSWORD}
+    url: ${spring.datasource.url}
+    user: ${spring.datasource.username}
+    password: ${spring.datasource.password}
   jpa:
     hibernate:
       ddl-auto: validate
@@ -19,11 +19,16 @@ spring:
     jwt:
       private-key-location: ${SECURITY_JWT_PRIVATE_KEY_LOCATION}
       public-key-location: ${SECURITY_JWT_PUBLIC_KEY_LOCATION}
-      access-expiration: ${SECURITY_JWT_ACCESS_EXPIRATION}
-      refresh-expiration: ${SECURITY_JWT_REFRESH_EXPIRATION}
+      access-expiration: ${SECURITY_JWT_ACCESS_EXPIRATION:600}
+      refresh-expiration: ${SECURITY_JWT_REFRESH_EXPIRATION:86400}
 
 server:
   port: ${SERVER_PORT}
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_URL}
 
 management:
   endpoints:

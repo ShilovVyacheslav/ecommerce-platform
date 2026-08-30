@@ -1,0 +1,16 @@
+spring:
+  main:
+    banner-mode: off
+  application:
+    name: product-service
+  flyway:
+    enabled: false
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          jwk-set-uri: http://localhost:8081/.well-known/jwks.json
+
+eureka:
+  client:
+    enabled: false
