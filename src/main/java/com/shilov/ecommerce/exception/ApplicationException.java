@@ -1,7 +1,7 @@
-package com.shilov.ecommerce.ecommerceplatform.exception;
+package com.shilov.ecommerce.exception;
 
-import com.shilov.ecommerce.ecommerceplatform.enums.ErrorType;
-import com.shilov.ecommerce.ecommerceplatform.enums.ServiceName;
+import com.shilov.ecommerce.enums.ErrorType;
+import com.shilov.ecommerce.enums.ServiceName;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.ToString;

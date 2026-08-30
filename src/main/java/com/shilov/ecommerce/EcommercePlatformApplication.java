@@ -1,4 +1,4 @@
-package com.shilov.ecommerce.ecommerceplatform;
+package com.shilov.ecommerce;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;

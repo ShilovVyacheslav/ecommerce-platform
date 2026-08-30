@@ -1,7 +1,7 @@
-package com.shilov.ecommerce.ecommerceplatform.dto;
+package com.shilov.ecommerce.dto;
 
-import com.shilov.ecommerce.ecommerceplatform.enums.ErrorType;
-import com.shilov.ecommerce.ecommerceplatform.enums.ServiceName;
+import com.shilov.ecommerce.enums.ErrorType;
+import com.shilov.ecommerce.enums.ServiceName;
 
 import java.util.Collections;
 import java.util.List;

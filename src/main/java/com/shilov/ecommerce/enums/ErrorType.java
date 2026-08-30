@@ -1,4 +1,4 @@
-package com.shilov.ecommerce.ecommerceplatform.enums;
+package com.shilov.ecommerce.enums;
 
 public enum ErrorType {
     EXTERNAL_ERROR,
