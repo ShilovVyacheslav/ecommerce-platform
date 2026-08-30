@@ -10,6 +10,10 @@
 *.iws
 out/
 
+# JWT keys
+**/keys/*.pem
+!**/src/test/resources/keys/*.pem
+
 # Gradle / Java build output
 .gradle/
 build/
