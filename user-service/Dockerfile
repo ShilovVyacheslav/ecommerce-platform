@@ -3,8 +3,13 @@
 FROM eclipse-temurin:21-jdk-noble AS builder
 WORKDIR /workspace
 
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends openssl \
+    && rm -rf /var/lib/apt/lists/*
+
 COPY . .
-RUN chmod +x gradlew
+RUN chmod +x gradlew scripts/generate-jwt-keys.sh
+RUN ./scripts/generate-jwt-keys.sh docker
 
 RUN --mount=type=cache,target=/root/.gradle \
     ./gradlew :user-service:bootJar --no-daemon -x test
