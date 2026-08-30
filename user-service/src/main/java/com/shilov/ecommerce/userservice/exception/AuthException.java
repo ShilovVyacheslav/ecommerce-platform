@@ -1,17 +1,17 @@
 package com.shilov.ecommerce.userservice.exception;
 
-import com.shilov.ecommerce.ecommerceplatform.enums.ErrorType;
-import com.shilov.ecommerce.ecommerceplatform.enums.ServiceName;
+import com.shilov.ecommerce.enums.ErrorType;
+import com.shilov.ecommerce.enums.ServiceName;
 
-import com.shilov.ecommerce.ecommerceplatform.exception.ApplicationException;
+import com.shilov.ecommerce.exception.ApplicationException;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.ToString;
 import lombok.experimental.FieldDefaults;
 import org.springframework.http.HttpStatus;
 
-import static com.shilov.ecommerce.ecommerceplatform.enums.ErrorType.VALIDATION_ERROR;
-import static com.shilov.ecommerce.ecommerceplatform.enums.ServiceName.AUTH_SERVICE;
+import static com.shilov.ecommerce.enums.ErrorType.VALIDATION_ERROR;
+import static com.shilov.ecommerce.enums.ServiceName.AUTH_SERVICE;
 import static com.shilov.ecommerce.userservice.enums.ErrorCode.ACCESS_DENIED_ERROR;
 import static com.shilov.ecommerce.userservice.enums.ErrorCode.JWT_AUTH_ERROR;
 import static com.shilov.ecommerce.userservice.enums.ErrorCode.JWT_SYSTEM_ERROR;

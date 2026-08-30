@@ -17,3 +17,7 @@ spring:
       public-key-location: classpath:keys/test-public.pem
       access-expiration: 600
       refresh-expiration: 86400
+
+eureka:
+  client:
+    enabled: false
