@@ -22,9 +22,11 @@ COPY --from=builder --chown=spring:spring /workspace/api-gateway/build/libs/*.ja
 
 USER spring:spring
 
-EXPOSE 8080
+ARG SERVER_PORT=8080
+ENV SERVER_PORT=${SERVER_PORT}
+EXPOSE ${SERVER_PORT}
 
 HEALTHCHECK --interval=10s --timeout=5s --start-period=20s --retries=10 \
-    CMD curl -f http://localhost:8080/actuator/health || exit 1
+    CMD curl -f http://localhost:${SERVER_PORT}/actuator/health || exit 1
 
 ENTRYPOINT ["java", "-XX:MaxRAMPercentage=75.0", "-jar", "app.jar"]
