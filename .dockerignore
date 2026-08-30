@@ -16,7 +16,6 @@
 **/build/
 **/.gradle/
 **/*.class
-**/*.jar
 
 # Documentation
 **/*.md
