@@ -1,0 +1,36 @@
+spring:
+  main:
+    banner-mode: off
+  application:
+    name: order-service
+  datasource:
+    url: ${SPRING_DATASOURCE_URL}
+    username: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
+  flyway:
+    url: ${spring.datasource.url}
+    user: ${spring.datasource.username}
+    password: ${spring.datasource.password}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          jwk-set-uri: ${SECURITY_JWT_JWKS_URI}
+
+server:
+  port: ${SERVER_PORT}
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_URL}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
