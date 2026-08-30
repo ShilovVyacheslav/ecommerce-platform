@@ -1,0 +1,27 @@
+spring:
+  main:
+    banner-mode: off
+  application:
+    name: product-service
+  data:
+    mongodb:
+      uri: ${SPRING_DATA_MONGODB_URI}
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          jwk-set-uri: ${SECURITY_JWT_JWKS_URI}
+
+server:
+  port: ${SERVER_PORT}
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_URL}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
