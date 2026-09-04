@@ -1,4 +1,4 @@
-package com.shilov.ecommerce.userservice.validation;
+package com.shilov.ecommerce.validation;
 
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.JsonParser;

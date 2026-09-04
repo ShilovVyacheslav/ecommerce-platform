@@ -1,5 +1,0 @@
-spring:
-  main:
-    banner-mode: off
-  application:
-    name: ecommerce-platform
