@@ -23,7 +23,7 @@ spring:
       refresh-expiration: ${SECURITY_JWT_REFRESH_EXPIRATION:86400}
 
 server:
-  port: ${SERVER_PORT}
+  port: ${SERVER_PORT:8081}
 
 eureka:
   client:

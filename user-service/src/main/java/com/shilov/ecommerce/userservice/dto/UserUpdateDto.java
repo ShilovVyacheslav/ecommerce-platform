@@ -2,7 +2,7 @@ package com.shilov.ecommerce.userservice.dto;
 
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.shilov.ecommerce.userservice.enums.Role;
-import com.shilov.ecommerce.userservice.validation.StrictBooleanDeserializer;
+import com.shilov.ecommerce.validation.StrictBooleanDeserializer;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;

@@ -13,9 +13,6 @@ spring:
       private-key-location: classpath:keys/local-private.pem
       public-key-location: classpath:keys/local-public.pem
 
-server:
-  port: 8081
-
 eureka:
   client:
     service-url:

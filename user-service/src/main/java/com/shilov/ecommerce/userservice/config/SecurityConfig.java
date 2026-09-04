@@ -7,6 +7,8 @@ import lombok.experimental.FieldDefaults;
 import org.springframework.boot.actuate.autoconfigure.security.servlet.EndpointRequest;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.access.hierarchicalroles.RoleHierarchy;
+import org.springframework.security.access.hierarchicalroles.RoleHierarchyImpl;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -35,12 +37,13 @@ import java.time.Duration;
 public class SecurityConfig {
 
     private static final String[] AUTH_WHITE_LIST = {
+            "/swagger-ui.html",
             "/swagger-ui/**",
             "/swagger-resources/**",
+            "/v3/api-docs/**",
             "/.well-known/jwks.json",
             "/api/v1/auth/register",
             "/api/v1/auth/login",
-            "/api/v1/auth/refresh",
     };
 
     JwtProps jwtProps;
@@ -98,6 +101,13 @@ public class SecurityConfig {
         JwtAuthenticationConverter jwtConverter = new JwtAuthenticationConverter();
         jwtConverter.setJwtGrantedAuthoritiesConverter(converter);
         return jwtConverter;
+    }
+
+    @Bean
+    static RoleHierarchy roleHierarchy() {
+        return RoleHierarchyImpl.withDefaultRolePrefix()
+                .role("SUPER_ADMIN").implies("ADMIN")
+                .build();
     }
 
 }
