@@ -77,7 +77,7 @@ spring:
           jwk-set-uri: ${SECURITY_JWT_JWKS_URI}
 
 server:
-  port: ${SERVER_PORT}
+  port: ${SERVER_PORT:8080}
 
 eureka:
   client:
