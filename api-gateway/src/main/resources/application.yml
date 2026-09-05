@@ -12,7 +12,7 @@ spring:
         webflux:
           routes:
             - id: user-service-auth
-              uri: lb://user-service
+              uri: ${USER_SERVICE_URI:lb://user-service}
               predicates:
                 - Path=/api/v1/auth/**
               filters:
@@ -24,7 +24,7 @@ spring:
                     key-resolver: "#{@rateLimiterKeyResolver}"
 
             - id: user-service-users
-              uri: lb://user-service
+              uri: ${USER_SERVICE_URI:lb://user-service}
               predicates:
                 - Path=/api/v1/users/**
               filters:
@@ -36,7 +36,7 @@ spring:
                     key-resolver: "#{@rateLimiterKeyResolver}"
 
             - id: payment-service
-              uri: lb://payment-service
+              uri: ${PAYMENT_SERVICE_URI:lb://payment-service}
               predicates:
                 - Path=/api/v1/payments/**
               filters:
@@ -48,7 +48,7 @@ spring:
                     key-resolver: "#{@rateLimiterKeyResolver}"
 
             - id: product-service
-              uri: lb://product-service
+              uri: ${PRODUCT_SERVICE_URI:lb://product-service}
               predicates:
                 - Path=/api/v1/products/**
               filters:
@@ -60,7 +60,7 @@ spring:
                     key-resolver: "#{@rateLimiterKeyResolver}"
 
             - id: order-service
-              uri: lb://order-service
+              uri: ${ORDER_SERVICE_URI:lb://order-service}
               predicates:
                 - Path=/api/v1/orders/**
               filters:
