@@ -1,0 +1,75 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: mongo-cluster-init
+  namespace: ecommerce
+spec:
+  backoffLimit: 3
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: mongo-init
+          image: mongo:7
+          envFrom:
+            - secretRef:
+                name: mongo-credentials
+          command:
+            - bash
+            - -c
+            - |
+              set -e
+              echo "Waiting for config server..."
+              until mongosh --host mongo-configsvr-0.mongo-configsvr.ecommerce.svc.cluster.local:27019 --eval "print('ok')" &>/dev/null; do sleep 2; done
+
+              echo "Initiating config server replica set..."
+              mongosh --host mongo-configsvr-0.mongo-configsvr.ecommerce.svc.cluster.local:27019 --eval '
+                rs.initiate({
+                  _id: "csrs",
+                  configsvr: true,
+                  members: [{ _id: 0, host: "mongo-configsvr-0.mongo-configsvr.ecommerce.svc.cluster.local:27019" }]
+                })
+              ' || echo "csrs already initiated, skipping"
+
+              echo "Initiating shard1 replica set..."
+              mongosh --host mongo-shard1-0.mongo-shard1.ecommerce.svc.cluster.local:27018 --eval '
+                rs.initiate({
+                  _id: "shard1",
+                  members: [{ _id: 0, host: "mongo-shard1-0.mongo-shard1.ecommerce.svc.cluster.local:27018" }]
+                })
+              ' || echo "shard1 already initiated, skipping"
+
+              echo "Initiating shard2 replica set..."
+              mongosh --host mongo-shard2-0.mongo-shard2.ecommerce.svc.cluster.local:27018 --eval '
+                rs.initiate({
+                  _id: "shard2",
+                  members: [{ _id: 0, host: "mongo-shard2-0.mongo-shard2.ecommerce.svc.cluster.local:27018" }]
+                })
+              ' || echo "shard2 already initiated, skipping"
+
+              echo "Waiting for mongos..."
+              until mongosh --host mongos.ecommerce.svc.cluster.local:27017 --eval "print('ok')" &>/dev/null; do sleep 2; done
+
+              echo "Adding shards to cluster..."
+              mongosh --host mongos.ecommerce.svc.cluster.local:27017 --eval '
+                sh.addShard("shard1/mongo-shard1-0.mongo-shard1.ecommerce.svc.cluster.local:27018");
+                sh.addShard("shard2/mongo-shard2-0.mongo-shard2.ecommerce.svc.cluster.local:27018");
+              '
+
+              echo "Creating root user..."
+              mongosh --host mongos.ecommerce.svc.cluster.local:27017 --eval '
+                db.getSiblingDB("admin").createUser({
+                  user: "'"$MONGO_ROOT_USER"'",
+                  pwd: "'"$MONGO_ROOT_PASSWORD"'",
+                  roles: [{ role: "root", db: "admin" }]
+                })
+              ' || echo "root user already exists, skipping"
+
+              echo "Enabling sharding on product_service database..."
+              mongosh --host mongos.ecommerce.svc.cluster.local:27017 -u "$MONGO_ROOT_USER" -p "$MONGO_ROOT_PASSWORD" --authenticationDatabase admin --eval '
+                sh.enableSharding("product_service");
+                sh.shardCollection("product_service.products", { _id: "hashed" });
+                sh.shardCollection("product_service.stock_reservations", { orderId: "hashed" });
+              '
+
+              echo "Mongo cluster initialized successfully."

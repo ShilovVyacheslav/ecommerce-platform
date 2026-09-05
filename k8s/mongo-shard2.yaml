@@ -1,0 +1,61 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: mongo-shard2
+  namespace: ecommerce
+spec:
+  clusterIP: None
+  selector:
+    app: mongo-shard2
+  ports:
+    - port: 27018
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: mongo-shard2
+  namespace: ecommerce
+spec:
+  serviceName: mongo-shard2
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mongo-shard2
+  template:
+    metadata:
+      labels:
+        app: mongo-shard2
+    spec:
+      containers:
+        - name: mongo-shard2
+          image: mongo:7
+          command:
+            - mongod
+            - --shardsvr
+            - --replSet=shard2
+            - --port=27018
+            - --keyFile=/etc/mongo-keyfile/mongodb-keyfile
+          ports:
+            - containerPort: 27018
+          resources:
+            requests: { memory: "192Mi", cpu: "100m" }
+            limits: { memory: "384Mi", cpu: "500m" }
+          volumeMounts:
+            - name: data
+              mountPath: /data/db
+            - name: keyfile
+              mountPath: /etc/mongo-keyfile
+              readOnly: true
+      volumes:
+        - name: keyfile
+          secret:
+            secretName: mongo-keyfile
+            defaultMode: 0400
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 512Mi
