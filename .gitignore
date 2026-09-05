@@ -23,9 +23,8 @@ build/
 HELP.md
 
 # Environment Files
-.env
-.env.docker
-!.env.docker.example
+.env*
+!.env.example
 
 # OS & System Files
 .DS_Store
