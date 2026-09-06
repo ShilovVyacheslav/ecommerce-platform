@@ -35,6 +35,7 @@ spec:
             - --replSet=shard2
             - --port=27018
             - --keyFile=/etc/mongo-keyfile/mongodb-keyfile
+            - --bind_ip_all
           ports:
             - containerPort: 27018
           resources:

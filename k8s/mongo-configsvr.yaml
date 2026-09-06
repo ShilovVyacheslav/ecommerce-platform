@@ -35,6 +35,7 @@ spec:
             - --replSet=csrs
             - --port=27019
             - --keyFile=/etc/mongo-keyfile/mongodb-keyfile
+            - --bind_ip_all
           ports:
             - containerPort: 27019
           resources:
