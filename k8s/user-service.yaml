@@ -64,4 +64,4 @@ spec:
         - name: jwt-keys
           secret:
             secretName: jwt-keys
-            defaultMode: 0400
+            defaultMode: 0444
