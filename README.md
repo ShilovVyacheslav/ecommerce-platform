@@ -10,7 +10,7 @@
 ![Eureka](https://img.shields.io/badge/Service%20Discovery-Eureka-6DB33F?logo=spring&logoColor=white)
 ![Spring Security](https://img.shields.io/badge/Spring%20Security-OAuth2%20%2F%20JWT-red.svg?logo=springsecurity&logoColor=white)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-17-informational.svg?logo=postgresql&logoColor=white)
-![MongoDB](https://img.shields.io/badge/MongoDB-7.0-47A248?logo=mongodb&logoColor=white)
+![MongoDB](https://img.shields.io/badge/MongoDB-4.4-47A248?logo=mongodb&logoColor=white)
 ![Redis](https://img.shields.io/badge/Redis-7.0-orange?logo=redis&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-Compose-2496ED.svg?logo=docker&logoColor=white)
 ![Gradle](https://img.shields.io/badge/Gradle-8.14.3-02303A.svg?logo=gradle&logoColor=white)
@@ -273,45 +273,26 @@ cd C:\Path\To\Redis
 
 ### Option 3: Kubernetes
 
-Requires [minikube](https://minikube.sigs.k8s.io/docs/start/) and `kubectl` installed, plus Docker as minikube's driver (see the note below if Docker doesn't run natively on your machine).
-
-> **Resource requirements** — the full stack (6 services, 3 Postgres instances, a sharded MongoDB cluster, Redis, plus the Kubernetes control plane itself) needs realistically **8GB+ RAM** to run comfortably. On less, expect pods stuck in `Pending`/`OOMKilled` — this isn't a bug, it's the cluster running out of room. `free -h` / `kubectl top pods` are your friends if something won't start.
-
 **Start the cluster:**
 ```bash
-minikube start --driver=docker --cpus=4 --memory=8192
+minikube start --driver=docker --cpus=8 --memory=8192
 minikube addons enable ingress
 ```
 
-**Build the images into minikube's own Docker daemon** (so it doesn't need to pull from a registry):
-
-<table>
-<tr><th>bash (Linux / macOS / Git Bash / WSL)</th><th>PowerShell</th></tr>
-<tr><td>
+**Build the images into minikube's own Docker daemon**:
 
 ```bash
+cp .env.example .env.docker
 eval $(minikube docker-env)
-docker compose build user-service payment-service product-service order-service api-gateway
+DOCKER_BUILDKIT=0 COMPOSE_DOCKER_CLI_BUILD=0 docker compose --env-file .env.docker build user-service payment-service product-service order-service api-gateway
 ```
-
-</td><td>
-
-```powershell
-& minikube -p minikube docker-env --shell powershell | Invoke-Expression
-docker compose build user-service payment-service product-service order-service api-gateway
-```
-
-</td></tr>
-</table>
-
-`discovery-server` is intentionally not built — Kubernetes' own DNS replaces Eureka in this profile, no discovery server is deployed.
 
 **Namespace and secrets:**
 ```bash
 kubectl apply -f k8s/00-namespace.yaml
+chmod +x ./scripts/k8s-create-secrets.sh ./scripts/generate-jwt-keys.sh
 ./scripts/k8s-create-secrets.sh
 ```
-`k8s-create-secrets.sh` is bash-only. On Windows, run it from Git Bash — the rest of the commands below work the same from PowerShell or bash.
 
 **Bring up the infrastructure, waiting on each layer before the next:**
 ```bash
@@ -334,12 +315,8 @@ kubectl wait --for=condition=ready pod -l app=mongo-shard2 -n ecommerce --timeou
 kubectl apply -f k8s/mongo-mongos.yaml
 kubectl wait --for=condition=ready pod -l app=mongos -n ecommerce --timeout=180s
 
-kubectl apply -f k8s/mongo-init-job.yaml
-kubectl wait --for=condition=complete job/mongo-cluster-init -n ecommerce --timeout=300s
-```
-If the last `wait` times out, check what went wrong before continuing:
-```bash
-kubectl logs job/mongo-cluster-init -n ecommerce
+chmod +x scripts/k8s-init-mongo-cluster.sh
+./scripts/k8s-init-mongo-cluster.sh
 ```
 
 **Business services:**
@@ -358,13 +335,6 @@ kubectl apply -f k8s/ingress.yaml
 minikube service api-gateway -n ecommerce --url
 ```
 That URL is a direct route to `api-gateway`, equivalent to `http://localhost:8080` in the other two options.
-
-**Troubleshooting a pod that won't come up:**
-```bash
-kubectl get pods -n ecommerce
-kubectl describe pod <pod-name> -n ecommerce
-kubectl logs <pod-name> -n ecommerce
-```
 
 ---
 
