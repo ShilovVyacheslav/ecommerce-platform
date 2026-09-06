@@ -28,7 +28,7 @@ spec:
     spec:
       containers:
         - name: mongo-configsvr
-          image: mongo:7
+          image: mongo:4.4
           command:
             - mongod
             - --configsvr

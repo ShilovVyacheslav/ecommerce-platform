@@ -28,7 +28,7 @@ spec:
     spec:
       containers:
         - name: mongo-shard1
-          image: mongo:7
+          image: mongo:4.4
           command:
             - mongod
             - --shardsvr
