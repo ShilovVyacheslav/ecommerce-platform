@@ -11,6 +11,8 @@ public interface PaymentGateway {
 
     GatewayResult charge(BigDecimal amount, String currency);
 
+    void refund(String providerReference);
+
     @Data
     @Builder
     @NoArgsConstructor
@@ -18,6 +20,7 @@ public interface PaymentGateway {
     public static class GatewayResult {
         private boolean approved;
         private String failureReason;
+        private String providerReference;
     }
 
 }

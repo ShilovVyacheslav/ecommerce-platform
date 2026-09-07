@@ -9,6 +9,7 @@ import com.shilov.ecommerce.paymentservice.gateway.PaymentGateway;
 import com.shilov.ecommerce.paymentservice.gateway.PaymentGateway.GatewayResult;
 import com.shilov.ecommerce.paymentservice.mapper.PaymentMapper;
 import com.shilov.ecommerce.paymentservice.repository.PaymentRepository;
+import com.shilov.ecommerce.paymentservice.service.LedgerService;
 import com.shilov.ecommerce.paymentservice.service.PaymentService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -26,6 +27,7 @@ public class PaymentServiceImpl implements PaymentService {
     private final PaymentRepository paymentRepository;
     private final PaymentMapper paymentMapper;
     private final PaymentGateway paymentGateway;
+    private final LedgerService ledgerService;
 
     @Override
     @Transactional
@@ -46,17 +48,29 @@ public class PaymentServiceImpl implements PaymentService {
                 .failureReason(gatewayResult.getFailureReason())
                 .build();
 
-        return paymentMapper.toDto(paymentRepository.save(payment));
+        payment = paymentRepository.save(payment);
+
+        if (gatewayResult.isApproved()) {
+            ledgerService.recordCharge(payment.getId(), payment.getAmount(), payment.getCurrency());
+        }
+
+        return paymentMapper.toDto(payment);
     }
 
     @Override
     @Transactional
     public PaymentResponseDto refund(UUID orderId) {
         Payment payment = findOrThrow(orderId);
-        if (payment.getStatus() == PaymentStatus.COMPLETED) {
-            payment.setStatus(PaymentStatus.REFUNDED);
-            payment = paymentRepository.save(payment);
+        if (payment.getStatus() != PaymentStatus.COMPLETED) {
+            return paymentMapper.toDto(payment);
         }
+
+        if (payment.getProviderReference() != null) {
+            paymentGateway.refund(payment.getProviderReference());
+        }
+
+        payment.setStatus(PaymentStatus.REFUNDED);
+        ledgerService.recordRefund(payment.getId(), payment.getAmount(), payment.getCurrency());
         return paymentMapper.toDto(payment);
     }
 
