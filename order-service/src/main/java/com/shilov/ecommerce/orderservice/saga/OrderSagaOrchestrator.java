@@ -112,17 +112,31 @@ public class OrderSagaOrchestrator {
         if (order.getStatus() == OrderStatus.CONFIRMED) {
             return order;
         }
-        log.info("Confirming stock for order {}", order.getId());
         try {
             productServiceClient.confirm(order.getId().toString());
             order.setStatus(OrderStatus.CONFIRMED);
             log.info("Stock confirmed for order {}", order.getId());
-            return orderRepository.save(order);
         } catch (SagaStepException ex) {
-            log.error("Stock confirmation failed for order {} after successful payment - manual follow-up required: {}",
+            log.error("Stock confirmation failed for order {} after successful payment - compensating: {}",
                     order.getId(), ex.getMessage());
-            order.setFailureReason("Payment succeeded, but stock confirmation failed: " + ex.getMessage());
-            return orderRepository.save(order);
+            compensateAfterConfirmationFailure(order, ex);
+        }
+        return orderRepository.save(order);
+    }
+
+    private void compensateAfterConfirmationFailure(Order order, SagaStepException originalEx) {
+        try {
+            paymentServiceClient.refund(order.getId());
+            productServiceClient.release(order.getId().toString());
+            order.setStatus(OrderStatus.CANCELLED);
+            order.setFailureReason("Payment refunded after stock confirmation failure: " + originalEx.getMessage());
+        } catch (SagaStepException compensationEx) {
+            log.error("Compensation failed for order {} - refund/release did not complete. Manual intervention required.",
+                    order.getId(), compensationEx);
+
+            order.setStatus(OrderStatus.CANCELLED);
+            order.setFailureReason("Automatic compensation failed - requires manual review: "
+                    + compensationEx.getMessage());
         }
     }
 }
