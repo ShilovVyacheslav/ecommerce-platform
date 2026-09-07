@@ -46,6 +46,9 @@ public class Payment {
     @Column(nullable = false)
     private PaymentStatus status;
 
+    @Column(name = "provider_reference")
+    private String providerReference;
+
     @Column(name = "failure_reason")
     private String failureReason;
 
