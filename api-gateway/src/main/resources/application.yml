@@ -47,6 +47,18 @@ spring:
                     redis-rate-limiter.requestedTokens: 1
                     key-resolver: "#{@rateLimiterKeyResolver}"
 
+            - id: payment-service-admin
+              uri: ${PAYMENT_SERVICE_URI:lb://payment-service}
+              predicates:
+                - Path=/api/v1/admin/ledger/**
+              filters:
+                - name: RequestRateLimiter
+                  args:
+                    redis-rate-limiter.replenishRate: 10
+                    redis-rate-limiter.burstCapacity: 20
+                    redis-rate-limiter.requestedTokens: 1
+                    key-resolver: "#{@rateLimiterKeyResolver}"
+
             - id: product-service
               uri: ${PRODUCT_SERVICE_URI:lb://product-service}
               predicates:
