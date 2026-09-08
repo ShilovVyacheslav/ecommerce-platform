@@ -9,6 +9,7 @@ import com.shilov.ecommerce.orderservice.entity.Order;
 import com.shilov.ecommerce.orderservice.entity.OrderItem;
 import com.shilov.ecommerce.orderservice.enums.OrderStatus;
 import com.shilov.ecommerce.orderservice.exception.OrderException;
+import com.shilov.ecommerce.orderservice.exception.SagaStepException;
 import com.shilov.ecommerce.orderservice.mapper.OrderMapper;
 import com.shilov.ecommerce.orderservice.repository.OrderRepository;
 import com.shilov.ecommerce.orderservice.saga.OrderSagaOrchestrator;
@@ -21,7 +22,14 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 @Service
 @RequiredArgsConstructor
@@ -31,6 +39,9 @@ public class OrderServiceImpl implements OrderService {
     private final OrderMapper orderMapper;
     private final ProductServiceClient productServiceClient;
     private final OrderSagaOrchestrator orderSagaOrchestrator;
+    private final ExecutorService productLookupExecutor;
+
+    private static final long PRODUCT_LOOKUP_TIMEOUT_SECONDS = 10;
 
     @Override
     public OrderResponseDto createOrder(Jwt jwt, OrderCreateDto orderCreateDto) {
@@ -59,12 +70,42 @@ public class OrderServiceImpl implements OrderService {
     private Order buildOrder(Long userId, OrderCreateDto orderCreateDto) {
         Order order = Order.builder().userId(userId).status(OrderStatus.CREATED).build();
 
+        List<OrderItemCreateDto> items = orderCreateDto.getItems();
+        List<CompletableFuture<ProductSnapshotDto>> futures = items.stream()
+                .map(item -> CompletableFuture.supplyAsync(
+                        () -> productServiceClient.getProduct(item.getProductId()),
+                        productLookupExecutor))
+                .toList();
+
+        List<ProductSnapshotDto> products;
+        try {
+            products = CompletableFuture.allOf(futures.toArray(CompletableFuture[]::new))
+                    .thenApply(v -> futures.stream().map(CompletableFuture::join).toList())
+                    .get(PRODUCT_LOOKUP_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+        } catch (ExecutionException ex) {
+            Throwable cause = ex.getCause();
+            if (cause instanceof CompletionException && cause.getCause() != null) {
+                cause = cause.getCause();
+            }
+            if (cause instanceof RuntimeException re) {
+                throw re;
+            }
+            throw new IllegalStateException("Unexpected exception during parallel product lookup", cause);
+        } catch (TimeoutException ex) {
+            futures.forEach(f -> f.cancel(true));
+            throw SagaStepException.productServiceUnavailable(ex);
+        } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("Interrupted while waiting for product lookups", ex);
+        }
+
         BigDecimal totalAmount = BigDecimal.ZERO;
         String currency = null;
 
-        for (OrderItemCreateDto itemCreateDto : orderCreateDto.getItems()) {
-            ProductSnapshotDto productSnapshotDto =
-                    productServiceClient.getProduct(itemCreateDto.getProductId());
+        for (int i = 0; i < items.size(); ++i) {
+            ProductSnapshotDto productSnapshotDto = products.get(i);
+            OrderItemCreateDto orderItemCreateDto = items.get(i);
+
             if (!productSnapshotDto.getActive()) {
                 throw OrderException.productUnavailable();
             }
@@ -77,13 +118,13 @@ public class OrderServiceImpl implements OrderService {
             OrderItem orderItem = OrderItem.builder()
                     .productId(productSnapshotDto.getId())
                     .productName(productSnapshotDto.getName())
-                    .quantity(itemCreateDto.getQuantity())
+                    .quantity(orderItemCreateDto.getQuantity())
                     .unitPrice(productSnapshotDto.getPrice())
                     .build();
             order.addItem(orderItem);
 
             totalAmount = totalAmount.add(productSnapshotDto.getPrice()
-                    .multiply(BigDecimal.valueOf(itemCreateDto.getQuantity())));
+                    .multiply(BigDecimal.valueOf(orderItemCreateDto.getQuantity())));
         }
 
         order.setTotalAmount(totalAmount);
