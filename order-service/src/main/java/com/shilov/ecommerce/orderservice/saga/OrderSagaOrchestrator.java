@@ -7,8 +7,10 @@ import com.shilov.ecommerce.orderservice.dto.client.PaymentResponseDto;
 import com.shilov.ecommerce.orderservice.dto.client.ReservationItemRequestDto;
 import com.shilov.ecommerce.orderservice.entity.Order;
 import com.shilov.ecommerce.orderservice.enums.OrderStatus;
+import com.shilov.ecommerce.orderservice.enums.OutboxEventType;
 import com.shilov.ecommerce.orderservice.exception.SagaStepException;
 import com.shilov.ecommerce.orderservice.repository.OrderRepository;
+import com.shilov.ecommerce.orderservice.service.OutboxService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -21,6 +23,7 @@ import java.util.List;
 public class OrderSagaOrchestrator {
 
     private final OrderRepository orderRepository;
+    private final OutboxService outboxService;
     private final ProductServiceClient productServiceClient;
     private final PaymentServiceClient paymentServiceClient;
 
@@ -68,7 +71,7 @@ public class OrderSagaOrchestrator {
             log.warn("Stock reservation failed for order {}: {}", order.getId(), ex.getMessage());
             order.setStatus(OrderStatus.CANCELLED);
             order.setFailureReason("Stock reservation failed: " + ex.getMessage());
-            return orderRepository.save(order);
+            return outboxService.saveAndPublish(order, OutboxEventType.ORDER_CANCELLED);
         }
     }
 
@@ -91,7 +94,7 @@ public class OrderSagaOrchestrator {
             productServiceClient.release(order.getId().toString());
             order.setStatus(OrderStatus.CANCELLED);
             order.setFailureReason("Payment service unavailable");
-            return orderRepository.save(order);
+            return outboxService.saveAndPublish(order, OutboxEventType.ORDER_CANCELLED);
         }
 
         if (paymentResponseDto.getStatus() == PaymentStatus.COMPLETED) {
@@ -105,7 +108,7 @@ public class OrderSagaOrchestrator {
         productServiceClient.release(order.getId().toString());
         order.setStatus(OrderStatus.CANCELLED);
         order.setFailureReason("Payment declined: " + paymentResponseDto.getFailureReason());
-        return orderRepository.save(order);
+        return outboxService.saveAndPublish(order, OutboxEventType.ORDER_CANCELLED);
     }
 
     private Order confirmStock(Order order) {
@@ -121,7 +124,11 @@ public class OrderSagaOrchestrator {
                     order.getId(), ex.getMessage());
             compensateAfterConfirmationFailure(order, ex);
         }
-        return orderRepository.save(order);
+
+        OutboxEventType outboxEventType = order.getStatus() == OrderStatus.CONFIRMED
+                ? OutboxEventType.ORDER_CONFIRMED
+                : OutboxEventType.ORDER_CANCELLED;
+        return outboxService.saveAndPublish(order, outboxEventType);
     }
 
     private void compensateAfterConfirmationFailure(Order order, SagaStepException originalEx) {

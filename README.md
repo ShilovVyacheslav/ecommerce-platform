@@ -4,18 +4,17 @@
 
 **Scalable E-Commerce Microservices**
 
-![Java](https://img.shields.io/badge/Java-21-blue.svg?logo=openjdk&logoColor=white)
-![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.5.5-brightgreen.svg?logo=springboot&logoColor=white)
-![Spring Cloud](https://img.shields.io/badge/Spring%20Cloud-2025.0.2-blueviolet.svg?logo=spring&logoColor=white)
-![Eureka](https://img.shields.io/badge/Service%20Discovery-Eureka-6DB33F?logo=spring&logoColor=white)
-![Spring Security](https://img.shields.io/badge/Spring%20Security-OAuth2%20%2F%20JWT-red.svg?logo=springsecurity&logoColor=white)
-![PostgreSQL](https://img.shields.io/badge/PostgreSQL-17-informational.svg?logo=postgresql&logoColor=white)
+![Java](https://img.shields.io/badge/Java-21-ED8B00?logo=openjdk&logoColor=white)
+![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.5.5-6DB33F?logo=springboot&logoColor=white)
+![Gradle](https://img.shields.io/badge/Gradle-8.14.3-02303A?logo=gradle&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-17-4169E1?logo=postgresql&logoColor=white)
 ![MongoDB](https://img.shields.io/badge/MongoDB-4.4-47A248?logo=mongodb&logoColor=white)
-![Redis](https://img.shields.io/badge/Redis-7.0-orange?logo=redis&logoColor=white)
-![Docker](https://img.shields.io/badge/Docker-Compose-2496ED.svg?logo=docker&logoColor=white)
-![Gradle](https://img.shields.io/badge/Gradle-8.14.3-02303A.svg?logo=gradle&logoColor=white)
+![Redis](https://img.shields.io/badge/Redis-7.0-DC382D?logo=redis&logoColor=white)
+![Docker](https://img.shields.io/badge/Docker%20Compose-2496ED?logo=docker&logoColor=white)
+![Kubernetes](https://img.shields.io/badge/Kubernetes-326CE5?logo=kubernetes&logoColor=white)
+![Apache Kafka](https://img.shields.io/badge/Apache%20Kafka-5A1A3A?logo=apachekafka&logoColor=white)
 [![CI](https://github.com/ShilovVyacheslav/ecommerce-platform/actions/workflows/ci.yml/badge.svg)](https://github.com/ShilovVyacheslav/ecommerce-platform/actions/workflows/ci.yml)
-![License](https://img.shields.io/badge/License-MIT-yellow.svg)
+![License](https://img.shields.io/badge/License-MIT-yellow)
 
 </div>
 
@@ -34,6 +33,13 @@ git clone https://github.com/ShilovVyacheslav/ecommerce-platform.git
 cd ecommerce-platform
 ```
 
+---
+
+<details>
+<summary><b>Option 1: Docker (recommended)</b></summary>
+
+<br>
+
 ### Option 1: Docker (recommended)
 
 **First-time setup:**
@@ -49,7 +55,7 @@ cp .env.example .env.docker
 
 </td><td>
 
-```powershell
+```bash
 Copy-Item .env.example .env.docker
 ```
 
@@ -66,7 +72,7 @@ docker compose --env-file .env.docker up --build -d
 ```bash
 # 1. Infrastructure first — everything else depends on these being healthy
 docker compose --env-file .env.docker up -d postgres-user \
-  postgres-payment postgres-order mongo-product redis discovery-server
+  postgres-payment postgres-order mongo-product redis kafka discovery-server
 
 # 2. Build each service image one by one
 docker compose --env-file .env.docker build user-service
@@ -74,6 +80,7 @@ docker compose --env-file .env.docker build payment-service
 docker compose --env-file .env.docker build product-service
 docker compose --env-file .env.docker build order-service
 docker compose --env-file .env.docker build api-gateway
+docker compose --env-file .env.docker build notification-service
 
 # 3. Start services in dependency order — user-service first
 docker compose --env-file .env.docker up -d user-service
@@ -81,6 +88,7 @@ docker compose --env-file .env.docker up -d payment-service
 docker compose --env-file .env.docker up -d product-service
 docker compose --env-file .env.docker up -d order-service
 docker compose --env-file .env.docker up -d api-gateway
+docker compose --env-file .env.docker up -d notification-service
 ```
 
 **Shut down:**
@@ -89,7 +97,14 @@ docker compose --env-file .env.docker up -d api-gateway
 docker compose --env-file .env.docker down
 ```
 
+</details>
+
 ---
+
+<details>
+<summary><b>Option 2: Manual</b></summary>
+
+<br>
 
 ### Option 2: Manual
 
@@ -111,7 +126,7 @@ Requires locally running:
 
 </td><td>
 
-```powershell
+```bash
 .\scripts\generate-jwt-keys.ps1
 ```
 
@@ -135,7 +150,7 @@ redis-server
 
 </td><td>
 
-```powershell
+```bash
 cd C:\Path\To\Redis
 .\redis-server.exe
 ```
@@ -157,7 +172,7 @@ cd C:\Path\To\Redis
 <tr><td><strong>PowerShell / cmd</strong></td>
 <td>
 
-```powershell
+```bash
 .\gradlew.bat :discovery-server:bootRun
 ```
 
@@ -178,7 +193,7 @@ cd C:\Path\To\Redis
 <tr><td><strong>PowerShell / cmd</strong></td>
 <td>
 
-```powershell
+```bash
 .\gradlew.bat :user-service:bootRun --args='--spring.profiles.active=local'
 ```
 
@@ -199,7 +214,7 @@ cd C:\Path\To\Redis
 <tr><td><strong>PowerShell / cmd</strong></td>
 <td>
 
-```powershell
+```bash
 .\gradlew.bat :payment-service:bootRun --args='--spring.profiles.active=local'
 ```
 
@@ -220,7 +235,7 @@ cd C:\Path\To\Redis
 <tr><td><strong>PowerShell / cmd</strong></td>
 <td>
 
-```powershell
+```bash
 .\gradlew.bat :product-service:bootRun --args='--spring.profiles.active=local'
 ```
 
@@ -241,7 +256,7 @@ cd C:\Path\To\Redis
 <tr><td><strong>PowerShell / cmd</strong></td>
 <td>
 
-```powershell
+```bash
 .\gradlew.bat :order-service:bootRun --args='--spring.profiles.active=local'
 ```
 
@@ -262,14 +277,42 @@ cd C:\Path\To\Redis
 <tr><td><strong>PowerShell / cmd</strong></td>
 <td>
 
-```powershell
+```bash
 .\gradlew.bat :api-gateway:bootRun --args='--spring.profiles.active=local'
 ```
 
 </td></tr>
 </table>
 
+**Terminal 8 — notification-service:**
+
+<table>
+<tr><td><strong>bash / zsh / sh</strong></td>
+<td>
+
+```bash
+./gradlew :notification-service:bootRun --args='--spring.profiles.active=local'
+```
+
+</td></tr>
+<tr><td><strong>PowerShell / cmd</strong></td>
+<td>
+
+```bash
+.\gradlew.bat :notification-service:bootRun --args='--spring.profiles.active=local'
+```
+
+</td></tr>
+</table>
+
+</details>
+
 ---
+
+<details>
+<summary><b>Option 3: Kubernetes</b></summary>
+
+<br>
 
 ### Option 3: Kubernetes
 
@@ -284,7 +327,7 @@ minikube addons enable ingress
 ```bash
 cp .env.example .env.docker
 eval $(minikube docker-env)
-DOCKER_BUILDKIT=0 COMPOSE_DOCKER_CLI_BUILD=0 docker compose --env-file .env.docker build user-service payment-service product-service order-service api-gateway
+DOCKER_BUILDKIT=0 COMPOSE_DOCKER_CLI_BUILD=0 docker compose --env-file .env.docker build user-service payment-service product-service order-service api-gateway notification-service
 ```
 
 **Namespace and secrets:**
@@ -296,23 +339,28 @@ chmod +x ./scripts/k8s-create-secrets.sh ./scripts/generate-jwt-keys.sh
 
 **Bring up the infrastructure, waiting on each layer before the next:**
 ```bash
-kubectl apply -f k8s/postgres-user.yaml -f k8s/postgres-payment.yaml -f k8s/postgres-order.yaml -f k8s/redis.yaml
+kubectl apply -f k8s/databases/
 kubectl wait --for=condition=ready pod -l app=postgres-user -n ecommerce --timeout=120s
 kubectl wait --for=condition=ready pod -l app=postgres-payment -n ecommerce --timeout=120s
 kubectl wait --for=condition=ready pod -l app=postgres-order -n ecommerce --timeout=120s
+
+kubectl apply -f k8s/cache/
 kubectl wait --for=condition=ready pod -l app=redis -n ecommerce --timeout=120s
+
+kubectl apply -f k8s/messaging/
+kubectl wait --for=condition=ready pod -l app=kafka -n ecommerce --timeout=120s
 ```
 
 **MongoDB sharded cluster — must come up in order:**
 ```bash
-kubectl apply -f k8s/mongo-configsvr.yaml
+kubectl apply -f k8s/mongodb-cluster/mongo-configsvr.yaml
 kubectl wait --for=condition=ready pod -l app=mongo-configsvr -n ecommerce --timeout=180s
 
-kubectl apply -f k8s/mongo-shard1.yaml -f k8s/mongo-shard2.yaml
+kubectl apply -f k8s/mongodb-cluster/mongo-shard1.yaml -f k8s/mongodb-cluster/mongo-shard2.yaml
 kubectl wait --for=condition=ready pod -l app=mongo-shard1 -n ecommerce --timeout=180s
 kubectl wait --for=condition=ready pod -l app=mongo-shard2 -n ecommerce --timeout=180s
 
-kubectl apply -f k8s/mongo-mongos.yaml
+kubectl apply -f k8s/mongodb-cluster/mongo-mongos.yaml
 kubectl wait --for=condition=ready pod -l app=mongos -n ecommerce --timeout=180s
 
 chmod +x scripts/k8s-init-mongo-cluster.sh
@@ -321,20 +369,22 @@ chmod +x scripts/k8s-init-mongo-cluster.sh
 
 **Business services:**
 ```bash
-kubectl apply -f k8s/user-service.yaml
+kubectl apply -f k8s/services/user-service.yaml
 kubectl wait --for=condition=ready pod -l app=user-service -n ecommerce --timeout=180s
 
-kubectl apply -f k8s/payment-service.yaml -f k8s/product-service.yaml -f k8s/order-service.yaml -f k8s/api-gateway.yaml
+kubectl apply -f k8s/services/
 kubectl get pods -n ecommerce -w
 ```
 Wait until everything shows `1/1 Running`, then `Ctrl+C`.
 
 **Access the API:**
 ```bash
-kubectl apply -f k8s/ingress.yaml
+kubectl apply -f k8s/networking/
 minikube service api-gateway -n ecommerce --url
 ```
 That URL is a direct route to `api-gateway`, equivalent to `http://localhost:8080` in the other two options.
+
+</details>
 
 ---
 

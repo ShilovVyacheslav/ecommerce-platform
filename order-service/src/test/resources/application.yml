@@ -20,3 +20,7 @@ spring:
 eureka:
   client:
     enabled: false
+
+messaging:
+  kafka:
+    enabled: false
