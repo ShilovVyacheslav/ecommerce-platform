@@ -1,0 +1,49 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: mongos
+  namespace: ecommerce
+spec:
+  selector:
+    app: mongos
+  ports:
+    - port: 27017
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mongos
+  namespace: ecommerce
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mongos
+  template:
+    metadata:
+      labels:
+        app: mongos
+    spec:
+      containers:
+        - name: mongos
+          image: mongo:4.4
+          command:
+            - mongos
+            - --configdb=csrs/mongo-configsvr-0.mongo-configsvr.ecommerce.svc.cluster.local:27019
+            - --port=27017
+            - --keyFile=/etc/mongo-keyfile/mongodb-keyfile
+            - --bind_ip_all
+          ports:
+            - containerPort: 27017
+          resources:
+            requests: { memory: "128Mi", cpu: "100m" }
+            limits: { memory: "256Mi", cpu: "500m" }
+          volumeMounts:
+            - name: keyfile
+              mountPath: /etc/mongo-keyfile
+              readOnly: true
+      volumes:
+        - name: keyfile
+          secret:
+            secretName: mongo-keyfile
+            defaultMode: 0400

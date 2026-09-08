@@ -14,10 +14,11 @@ spring:
         jwt:
           jwk-set-uri: http://localhost:8081/.well-known/jwks.json
 
-server:
-  port: 8082
-
 eureka:
   client:
     service-url:
       defaultZone: http://localhost:8761/eureka/
+
+app:
+  internal:
+    api-key: local-internal-api-key

@@ -22,7 +22,7 @@ spring:
           jwk-set-uri: ${SECURITY_JWT_JWKS_URI}
 
 server:
-  port: ${SERVER_PORT}
+  port: ${SERVER_PORT:8082}
 
 eureka:
   client:
@@ -34,3 +34,7 @@ management:
     web:
       exposure:
         include: health,info
+
+app:
+  internal:
+    api-key: ${INTERNAL_API_KEY}

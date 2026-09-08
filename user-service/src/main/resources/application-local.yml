@@ -8,13 +8,6 @@ spring:
     user: ${spring.datasource.username}
     password: ${spring.datasource.password}
     schemas: user_service
-  security:
-    jwt:
-      private-key-location: classpath:keys/local-private.pem
-      public-key-location: classpath:keys/local-public.pem
-
-server:
-  port: 8081
 
 eureka:
   client:

@@ -9,7 +9,7 @@ RUN apt-get update \
 
 COPY . .
 RUN chmod +x gradlew scripts/generate-jwt-keys.sh
-RUN ./scripts/generate-jwt-keys.sh docker
+RUN ./scripts/generate-jwt-keys.sh
 
 RUN --mount=type=cache,target=/root/.gradle \
     ./gradlew :user-service:bootJar --no-daemon -x test

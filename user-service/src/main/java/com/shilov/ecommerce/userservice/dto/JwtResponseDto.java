@@ -5,7 +5,7 @@ import lombok.Data;
 
 @Data
 @Builder
-public class JwtResponseDto {
+public final class JwtResponseDto {
     private String token;
     @Builder.Default
     private final String tokenType = "Bearer";

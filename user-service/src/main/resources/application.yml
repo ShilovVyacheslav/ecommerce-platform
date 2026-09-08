@@ -17,13 +17,13 @@ spring:
     open-in-view: false
   security:
     jwt:
-      private-key-location: ${SECURITY_JWT_PRIVATE_KEY_LOCATION}
-      public-key-location: ${SECURITY_JWT_PUBLIC_KEY_LOCATION}
+      private-key-location: ${SECURITY_JWT_PRIVATE_KEY_LOCATION:classpath:keys/private.pem}
+      public-key-location: ${SECURITY_JWT_PUBLIC_KEY_LOCATION:classpath:keys/public.pem}
       access-expiration: ${SECURITY_JWT_ACCESS_EXPIRATION:600}
       refresh-expiration: ${SECURITY_JWT_REFRESH_EXPIRATION:86400}
 
 server:
-  port: ${SERVER_PORT}
+  port: ${SERVER_PORT:8081}
 
 eureka:
   client:

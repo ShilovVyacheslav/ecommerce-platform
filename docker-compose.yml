@@ -11,13 +11,13 @@ services:
       args:
         SERVER_PORT: ${DISCOVERY_SERVER_PORT:?DISCOVERY_SERVER_PORT is not set}
     environment:
-      SPRING_PROFILES_ACTIVE: docker
       SERVER_PORT: ${DISCOVERY_SERVER_PORT}
     ports:
       - "${DISCOVERY_SERVER_PORT}:${DISCOVERY_SERVER_PORT}"
+    mem_limit: 384m
 
   postgres-user:
-    image: postgres:17
+    image: postgres:17-alpine
     environment:
       POSTGRES_DB: ${USER_DB}
       POSTGRES_USER: ${USER_DB_USER}
@@ -31,9 +31,10 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+    mem_limit: 256m
 
   postgres-payment:
-    image: postgres:17
+    image: postgres:17-alpine
     environment:
       POSTGRES_DB: ${PAYMENT_DB}
       POSTGRES_USER: ${PAYMENT_DB_USER}
@@ -47,9 +48,10 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+    mem_limit: 256m
 
   postgres-order:
-    image: postgres:17
+    image: postgres:17-alpine
     environment:
       POSTGRES_DB: ${ORDER_DB}
       POSTGRES_USER: ${ORDER_DB_USER}
@@ -63,9 +65,10 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+    mem_limit: 256m
 
   mongo-product:
-    image: mongo:7
+    image: mongo:4.4
     environment:
       MONGO_INITDB_ROOT_USERNAME: ${PRODUCT_MONGO_USER}
       MONGO_INITDB_ROOT_PASSWORD: ${PRODUCT_MONGO_PASSWORD}
@@ -74,13 +77,14 @@ services:
     volumes:
       - mongo-product-data:/data/db
     healthcheck:
-      test: [ "CMD-SHELL", "mongosh --quiet --eval \"db.adminCommand('ping')\" -u $${MONGO_INITDB_ROOT_USERNAME} -p $${MONGO_INITDB_ROOT_PASSWORD} --authenticationDatabase admin | grep -q 'ok.*1'" ]
-      interval: 5s
+      test: [ "CMD-SHELL", "mongo --quiet --eval \"db.adminCommand('ping')\" -u $${MONGO_INITDB_ROOT_USERNAME} -p $${MONGO_INITDB_ROOT_PASSWORD} --authenticationDatabase admin | grep -q 'ok.*1'" ]
+      interval: 10s
       timeout: 5s
-      retries: 10
+      retries: 5
+    mem_limit: 512m
 
   redis:
-    image: redis:7
+    image: redis:7-alpine
     environment:
       REDIS_PASSWORD: ${REDIS_PASSWORD}
     command: redis-server --requirepass ${REDIS_PASSWORD}
@@ -91,6 +95,7 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+    mem_limit: 128m
 
   user-service:
     build:
@@ -100,7 +105,6 @@ services:
         SERVER_PORT: ${USER_SERVICE_PORT:?USER_SERVICE_PORT is not set}
     environment:
       <<: *common-env
-      SPRING_PROFILES_ACTIVE: docker
       SERVER_PORT: ${USER_SERVICE_PORT}
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-user:5432/${USER_DB}
       SPRING_DATASOURCE_USERNAME: ${USER_DB_USER}
@@ -112,6 +116,7 @@ services:
         condition: service_healthy
       discovery-server:
         condition: service_healthy
+    mem_limit: 512m
 
   payment-service:
     build:
@@ -121,12 +126,12 @@ services:
         SERVER_PORT: ${PAYMENT_SERVICE_PORT:?PAYMENT_SERVICE_PORT is not set}
     environment:
       <<: *common-env
-      SPRING_PROFILES_ACTIVE: docker
       SERVER_PORT: ${PAYMENT_SERVICE_PORT}
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-payment:5432/${PAYMENT_DB}
       SPRING_DATASOURCE_USERNAME: ${PAYMENT_DB_USER}
       SPRING_DATASOURCE_PASSWORD: ${PAYMENT_DB_PASSWORD}
       SECURITY_JWT_JWKS_URI: ${SECURITY_JWT_JWKS_URI}
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY}
     ports:
       - "${PAYMENT_SERVICE_PORT}:${PAYMENT_SERVICE_PORT}"
     depends_on:
@@ -136,6 +141,7 @@ services:
         condition: service_healthy
       user-service:
         condition: service_healthy
+    mem_limit: 512m
 
   product-service:
     build:
@@ -145,10 +151,10 @@ services:
         SERVER_PORT: ${PRODUCT_SERVICE_PORT:?PRODUCT_SERVICE_PORT is not set}
     environment:
       <<: *common-env
-      SPRING_PROFILES_ACTIVE: docker
       SERVER_PORT: ${PRODUCT_SERVICE_PORT}
       SPRING_DATA_MONGODB_URI: mongodb://${PRODUCT_MONGO_USER}:${PRODUCT_MONGO_PASSWORD}@mongo-product:27017/product_service?authSource=admin
       SECURITY_JWT_JWKS_URI: ${SECURITY_JWT_JWKS_URI}
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY}
     ports:
       - "${PRODUCT_SERVICE_PORT}:${PRODUCT_SERVICE_PORT}"
     depends_on:
@@ -158,6 +164,7 @@ services:
         condition: service_healthy
       user-service:
         condition: service_healthy
+    mem_limit: 512m
 
   order-service:
     build:
@@ -167,12 +174,12 @@ services:
         SERVER_PORT: ${ORDER_SERVICE_PORT:?ORDER_SERVICE_PORT is not set}
     environment:
       <<: *common-env
-      SPRING_PROFILES_ACTIVE: docker
       SERVER_PORT: ${ORDER_SERVICE_PORT}
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-order:5432/${ORDER_DB}
       SPRING_DATASOURCE_USERNAME: ${ORDER_DB_USER}
       SPRING_DATASOURCE_PASSWORD: ${ORDER_DB_PASSWORD}
       SECURITY_JWT_JWKS_URI: ${SECURITY_JWT_JWKS_URI}
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY}
     ports:
       - "${ORDER_SERVICE_PORT}:${ORDER_SERVICE_PORT}"
     depends_on:
@@ -182,6 +189,7 @@ services:
         condition: service_healthy
       user-service:
         condition: service_healthy
+    mem_limit: 512m
 
   api-gateway:
     build:
@@ -191,7 +199,6 @@ services:
         SERVER_PORT: ${API_GATEWAY_PORT:?API_GATEWAY_PORT is not set}
     environment:
       <<: *common-env
-      SPRING_PROFILES_ACTIVE: docker
       SERVER_PORT: ${API_GATEWAY_PORT}
       SECURITY_JWT_JWKS_URI: ${SECURITY_JWT_JWKS_URI}
       REDIS_HOST: redis
@@ -212,6 +219,43 @@ services:
         condition: service_healthy
       order-service:
         condition: service_healthy
+    mem_limit: 512m
+
+  notification-service:
+    build:
+      context: .
+      dockerfile: notification-service/Dockerfile
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+    depends_on:
+      - kafka:
+          condition: service_healthy
+    mem_limit: 384m
+
+  kafka:
+    image: apache/kafka:latest
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
+      CLUSTER_ID: ${KAFKA_CLUSTER_ID}
+      KAFKA_HEAP_OPTS: "-Xmx256m -Xms256m"
+    ports:
+      - "9092:9092"
+    mem_limit: 512m
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
 
 volumes:
   postgres-user-data:

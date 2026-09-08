@@ -14,7 +14,7 @@ import java.time.LocalDate;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class UserFilterDto {
+public final class UserFilterDto {
     @Size(min = 1, max = 128)
     private String fullname;
     @Size(min = 1, max = 32)

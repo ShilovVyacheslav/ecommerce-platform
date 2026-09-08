@@ -1,5 +1,0 @@
-spring:
-  security:
-    jwt:
-      private-key-location: classpath:keys/docker-private.pem
-      public-key-location: classpath:keys/docker-public.pem
