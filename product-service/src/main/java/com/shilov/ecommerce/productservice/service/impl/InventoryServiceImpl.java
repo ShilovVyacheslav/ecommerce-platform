@@ -1,5 +1,6 @@
 package com.shilov.ecommerce.productservice.service.impl;
 
+import com.mongodb.DuplicateKeyException;
 import com.shilov.ecommerce.productservice.document.Product;
 import com.shilov.ecommerce.productservice.document.StockReservation;
 import com.shilov.ecommerce.productservice.dto.ReservationItemDto;
@@ -23,6 +24,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 @Slf4j
 @Service
@@ -58,13 +60,15 @@ public class InventoryServiceImpl implements InventoryService {
                         .quantity(reservationItemDto.getQuantity())
                         .status(ReservationStatus.RESERVED)
                         .build();
-                created.add(stockReservationRepository.save(stockReservation));
+
+                Optional<ReservationResponseDto> concurrentWinner = trySaveOrDetectRace(
+                        reservationRequestDto.getOrderId(), reservationItemDto, stockReservation, created);
+                if (concurrentWinner.isPresent()) {
+                    return concurrentWinner.get();
+                }
             }
         } catch (RuntimeException ex) {
-            for (StockReservation stockReservation : created) {
-                atomicIncrement(stockReservation.getOrderId(), stockReservation.getQuantity());
-            }
-            stockReservationRepository.deleteAll(created);
+            rollback(created);
             log.warn("Reservation rolled back for order {}: {}",
                     reservationRequestDto.getOrderId(), ex.getMessage());
             throw ex;
@@ -126,6 +130,30 @@ public class InventoryServiceImpl implements InventoryService {
         Query query = Query.query(Criteria.where("id").is(productId));
         Update update = new Update().inc("stockQuantity", quantity);
         mongoTemplate.findAndModify(query, update, Product.class);
+    }
+
+    private Optional<ReservationResponseDto> trySaveOrDetectRace(
+            String orderId, ReservationItemDto reservationItemDto,
+            StockReservation stockReservation, List<StockReservation> created) {
+        try {
+            created.add(stockReservationRepository.save(stockReservation));
+            return Optional.empty();
+        } catch (DuplicateKeyException ex) {
+            atomicIncrement(reservationItemDto.getProductId(), reservationItemDto.getQuantity());
+            rollback(created);
+            log.warn("Concurrent duplicate reserve for order {} product {} - "
+                    + "another request already won the race, returning its result",
+                    orderId, reservationItemDto.getProductId());
+            List<StockReservation> winner = stockReservationRepository.findByOrderId(orderId);
+            return Optional.of(buildResponse(orderId, winner));
+        }
+    }
+
+    private void rollback(List<StockReservation> created) {
+        for (StockReservation stockReservation : created) {
+            atomicIncrement(stockReservation.getProductId(), stockReservation.getQuantity());
+        }
+        stockReservationRepository.deleteAll(created);
     }
 
     private List<StockReservation> findOrThrow(String orderId) {
