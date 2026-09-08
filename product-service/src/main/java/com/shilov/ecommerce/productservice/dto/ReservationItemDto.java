@@ -11,7 +11,7 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class ReservationItemDto {
+public final class ReservationItemDto {
     @NotBlank
     private String productId;
 

@@ -10,7 +10,7 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class StockAdjustmentDto {
+public final class StockAdjustmentDto {
     @NotNull
     private Integer delta;
 }

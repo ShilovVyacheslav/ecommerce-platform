@@ -15,7 +15,7 @@ import java.util.List;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class ReservationRequestDto {
+public final class ReservationRequestDto {
     @NotBlank
     private String orderId;
 

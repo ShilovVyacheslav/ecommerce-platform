@@ -17,7 +17,7 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 @JsonInclude(JsonInclude.Include.NON_NULL)
-public class OrderResponseDto {
+public final class OrderResponseDto {
     private UUID id;
     private OrderStatus status;
     private List<OrderItemResponseDto> items;

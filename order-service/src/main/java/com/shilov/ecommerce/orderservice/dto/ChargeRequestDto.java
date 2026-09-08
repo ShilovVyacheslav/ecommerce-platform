@@ -15,7 +15,7 @@ import java.util.UUID;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class ChargeRequestDto {
+public final class ChargeRequestDto {
     @NotNull
     private UUID orderId;
 

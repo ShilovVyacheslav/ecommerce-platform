@@ -17,7 +17,7 @@ public interface PaymentGateway {
     @Builder
     @NoArgsConstructor
     @AllArgsConstructor
-    public static class GatewayResult {
+    static final class GatewayResult {
         private boolean approved;
         private String failureReason;
         private String providerReference;

@@ -16,7 +16,7 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 @JsonInclude(JsonInclude.Include.NON_NULL)
-public class PaymentResponseDto {
+public final class PaymentResponseDto {
     private UUID id;
     private UUID orderId;
     private BigDecimal amount;

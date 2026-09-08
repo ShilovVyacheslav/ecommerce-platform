@@ -15,7 +15,7 @@ import java.math.BigDecimal;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class ProductCreateDto {
+public final class ProductCreateDto {
     @NotBlank
     private String sku;
 
@@ -29,7 +29,7 @@ public class ProductCreateDto {
     private BigDecimal price;
 
     @NotBlank
-    String currency;
+    private String currency;
 
     @NotNull
     @Min(value = 0)

@@ -11,9 +11,10 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class OrderItemCreateDto {
+public final class OrderItemCreateDto {
     @NotBlank
     private String productId;
+
     @Min(value = 1)
-    private int quantity;
+    private Integer quantity;
 }

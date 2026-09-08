@@ -19,7 +19,7 @@ import static com.shilov.ecommerce.userservice.validation.Patterns.USERNAME_REGE
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class UserUpdateDto {
+public final class UserUpdateDto {
     @Size(min = 2, max = 128)
     @Pattern(regexp = FULLNAME_REGEXP)
     private String fullname;

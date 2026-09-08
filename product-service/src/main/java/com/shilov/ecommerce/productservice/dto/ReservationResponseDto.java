@@ -12,7 +12,7 @@ import java.util.List;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class ReservationResponseDto {
+public final class ReservationResponseDto {
     private String reservationId;
     private List<ReservationLineDto> items;
 
@@ -20,9 +20,9 @@ public class ReservationResponseDto {
     @Builder
     @NoArgsConstructor
     @AllArgsConstructor
-    public static class ReservationLineDto {
+    public static final class ReservationLineDto {
         private String productId;
-        private int quantity;
+        private Integer quantity;
         private ReservationStatus status;
 
     }

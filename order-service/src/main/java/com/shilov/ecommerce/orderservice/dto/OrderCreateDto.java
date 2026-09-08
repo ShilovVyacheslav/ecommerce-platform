@@ -14,7 +14,7 @@ import java.util.List;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class OrderCreateDto {
+public final class OrderCreateDto {
     @NotEmpty
     @Valid
     List<@NotNull OrderItemCreateDto> items;

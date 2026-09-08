@@ -13,7 +13,7 @@ import java.math.BigDecimal;
 @NoArgsConstructor
 @AllArgsConstructor
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class ProductSnapshotDto {
+public final class ProductSnapshotDto {
     private String id;
     private String name;
     private BigDecimal price;

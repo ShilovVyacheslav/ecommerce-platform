@@ -11,7 +11,7 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class UserRoleUpdateDto {
+public final class UserRoleUpdateDto {
     @NotNull
     private Role role;
 }
