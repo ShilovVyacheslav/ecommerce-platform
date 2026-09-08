@@ -1,0 +1,9 @@
+spring:
+  main:
+    web-application-type: none
+  application:
+    name: notification-service
+
+messaging:
+  kafka:
+    enabled: false
