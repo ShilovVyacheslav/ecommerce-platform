@@ -20,6 +20,12 @@
 
 ---
 
+<p align="center">
+  <img src="docs/ecommerce-schema.png">
+</p>
+
+---
+
 ## | Getting Started
 
 **Default Admin Account**

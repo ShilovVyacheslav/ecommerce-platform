@@ -1,0 +1,927 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>ecommerce-platform</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+            overflow: hidden;
+            background: #05080C
+        }
+
+        html, body, #map, #map * {
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent
+        }
+
+        #map {
+            display: block;
+            width: 100vw;
+            height: 100vh;
+            cursor: grab;
+            touch-action: none
+        }
+
+        #map.drag {
+            cursor: grabbing
+        }
+
+        #map text {
+            text-shadow: 0 0 7px rgba(110, 190, 225, .16)
+        }
+
+        .edge, .gnode {
+            transition: opacity .16s ease
+        }
+
+        svg.iso .gnode:not(.on) {
+            opacity: .08
+        }
+
+        svg.iso .edge:not(.on) {
+            opacity: .04
+        }
+
+        .gnode .bk {
+            fill: none;
+            stroke-width: 1.5
+        }
+
+        .gnode.sel .bk {
+            stroke: #FF3B47 !important;
+            stroke-width: 2.4
+        }
+
+        #fx {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            background: repeating-linear-gradient(0deg, rgba(0, 0, 0, 0) 0 2px, rgba(0, 0, 0, .22) 2px 4px),
+            radial-gradient(120% 90% at 50% 42%, rgba(0, 0, 0, 0) 42%, rgba(0, 0, 0, .72) 100%);
+            mix-blend-mode: multiply
+        }
+
+        #sweep {
+            position: fixed;
+            left: 0;
+            right: 0;
+            height: 180px;
+            pointer-events: none;
+            background: linear-gradient(180deg, rgba(90, 190, 220, 0) 0%, rgba(90, 190, 220, .045) 50%, rgba(90, 190, 220, 0) 100%);
+            animation: sw 11s linear infinite
+        }
+
+        @keyframes sw {
+            from {
+                top: -200px
+            }
+            to {
+                top: 100%
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            #sweep {
+                display: none
+            }
+
+            .edge, .gnode {
+                transition: none
+            }
+        }
+    </style>
+</head>
+<body>
+<svg id="map" viewBox="-60 -60 2560 1910" preserveAspectRatio="xMidYMid meet" role="img"
+     aria-label="ecommerce-platform deployment topology"></svg>
+<div id="sweep"></div>
+<div id="fx"></div>
+<script>
+    const NS = 'http://www.w3.org/2000/svg';
+    const C = {
+        bg: '#05080C', plate: '#0C1119', block: '#080C12', pod: '#0A0F16',
+        hair: '#2E3946', text: '#C3D0DC', dim: '#7A8A9C', faint: '#4E5C6B',
+        steel: '#8FB0CE', white: '#E4EDF5', cyan: '#2FD4E8', red: '#FF3B47', amber: '#E8B13D'
+    };
+    const ACC = {blue: C.steel, teal: C.cyan, violet: C.red, amber: C.amber, ink: C.steel};
+    const WASH = {
+        blue: 'rgba(143,176,206,.075)', teal: 'rgba(47,212,232,.075)',
+        violet: 'rgba(255,59,71,.075)', amber: 'rgba(232,177,61,.075)', ink: 'rgba(143,176,206,.055)'
+    };
+
+    const ADV = 0.6;
+
+    function wpx(s, size) {
+        return s.length * size * ADV;
+    }
+
+    function fit(s, maxPx, size) {
+        const n = Math.floor(maxPx / (size * ADV));
+        return s.length > n ? (n < 2 ? '' : s.slice(0, n - 1) + '\u2026') : s;
+    }
+
+    function E(n, a) {
+        const x = document.createElementNS(NS, n);
+        for (const k in a) if (a[k] != null) x.setAttribute(k, a[k]);
+        return x;
+    }
+
+    function T(x, y, s, o) {
+        o = o || {};
+        const size = o.s || 10.5;
+        const txt = o.mw ? fit(s, o.mw, size) : s;
+        const t = E('text', {
+            x,
+            y,
+            'font-family': 'IBM Plex Mono, monospace',
+            'font-size': size,
+            'font-weight': o.w || 400,
+            fill: o.f || C.dim,
+            'text-anchor': o.a || 'start',
+            'letter-spacing': o.ls == null ? 0 : o.ls,
+            'data-mw': o.mw || null
+        });
+        t.textContent = txt;
+        return t;
+    }
+
+    function bk(g, x, y, w, h, col, L, cls) {
+        [['M', x, y + L, x, y, x + L, y], ['M', x + w - L, y, x + w, y, x + w, y + L],
+            ['M', x + w, y + h - L, x + w, y + h, x + w - L, y + h], ['M', x + L, y + h, x, y + h, x, y + h - L]]
+            .forEach(p => g.appendChild(E('path', {
+                class: cls, d: 'M ' + p[1] + ' ' + p[2] + ' L ' + p[3] + ' ' + p[4] + ' L ' + p[5] + ' ' + p[6],
+                stroke: col, 'stroke-width': 1.5, fill: 'none'
+            })));
+    }
+
+    const NODES = [
+        {
+            id: 'client', type: 'plain', x: 60, y: 40, w: 320, h: 100, accent: 'ink', title: 'Browser / API client',
+            lines: ['curl \u00b7 Postman \u00b7 SPA', 'outside the cluster']
+        },
+        {
+            id: 'ingress-ctl',
+            type: 'plain',
+            x: 560,
+            y: 40,
+            w: 440,
+            h: 100,
+            accent: 'violet',
+            title: 'ingress-nginx controller',
+            lines: ['Deployment in namespace ingress-nginx', 'watches Ingress objects \u00b7 terminates :80']
+        },
+        {
+            id: 'ingress',
+            type: 'plain',
+            x: 85,
+            y: 240,
+            w: 460,
+            h: 180,
+            accent: 'violet',
+            title: 'Ingress/ecommerce-ingress',
+            lines: ['host      ecommerce.local', 'path      /(.*) \u2192 rewrite-target /$1', 'backend   api-gateway:8080', 'class     nginx']
+        },
+
+        {
+            id: 'api-gateway', x: 645, y: 220, w: 560, h: 220, accent: 'blue',
+            svc: {n: 'api-gateway', k: 'ClusterIP', p: 8080}, sel: 'app=api-gateway',
+            ctrl: {k: 'Deployment', n: 'api-gateway', r: 1}, pod: 'app=api-gateway',
+            cont: {
+                n: 'api-gateway',
+                i: '\u2026-api-gateway:latest',
+                p: 8080,
+                r: 'req 256Mi/100m \u00b7 lim 512Mi/500m'
+            },
+            extra: ['routes /auth /users /products /orders /admin', 'JWT validated once, at the edge']
+        },
+
+        {
+            id: 'redis', x: 1345, y: 220, w: 560, h: 220, accent: 'teal',
+            svc: {n: 'redis', k: 'Headless', p: 6379}, sel: 'app=redis',
+            ctrl: {k: 'StatefulSet', n: 'redis', r: 1}, pod: 'redis-0',
+            cont: {n: 'redis', i: 'redis:7-alpine', p: 6379, r: 'req 64Mi/50m \u00b7 lim 128Mi/250m'},
+            extra: ['PVC data 128Mi \u2192 /data', 'holds the rate-limiter token buckets']
+        },
+
+        {
+            id: 'user-service', x: 85, y: 500, w: 530, h: 280, accent: 'blue',
+            svc: {n: 'user-service', k: 'ClusterIP', p: 8081}, sel: 'app=user-service',
+            ctrl: {k: 'Deployment', n: 'user-service', r: 1}, pod: 'app=user-service',
+            cont: {
+                n: 'user-service',
+                i: '\u2026-user-service:latest',
+                p: 8081,
+                r: 'req 256Mi/100m \u00b7 lim 512Mi/500m'
+            },
+            extra: ['mounts jwt-keys \u2192 /etc/keys (0444)', 'signs RS256 \u00b7 serves /.well-known/jwks.json']
+        },
+
+        {
+            id: 'product-service', x: 665, y: 500, w: 530, h: 280, accent: 'blue',
+            svc: {n: 'product-service', k: 'ClusterIP', p: 8083}, sel: 'app=product-service',
+            ctrl: {k: 'Deployment', n: 'product-service', r: 1}, pod: 'app=product-service',
+            cont: {
+                n: 'product-service',
+                i: '\u2026-product-service:latest',
+                p: 8083,
+                r: 'req 256Mi/100m \u00b7 lim 512Mi/500m'
+            },
+            extra: ['atomic $inc stock \u2014 no oversell, no txn', 'INTERNAL_API_KEY guards /internal/**']
+        },
+
+        {
+            id: 'order-service', x: 1245, y: 500, w: 530, h: 280, accent: 'blue',
+            svc: {n: 'order-service', k: 'ClusterIP', p: 8084}, sel: 'app=order-service',
+            ctrl: {k: 'Deployment', n: 'order-service', r: 1}, pod: 'app=order-service',
+            cont: {
+                n: 'order-service',
+                i: '\u2026-order-service:latest',
+                p: 8084,
+                r: 'req 256Mi/100m \u00b7 lim 512Mi/500m'
+            },
+            extra: ['saga orchestrator \u00b7 only Kafka producer', 'outbox poller @Scheduled(fixedRate=2000)']
+        },
+
+        {
+            id: 'payment-service', x: 1825, y: 500, w: 530, h: 280, accent: 'blue',
+            svc: {n: 'payment-service', k: 'ClusterIP', p: 8082}, sel: 'app=payment-service',
+            ctrl: {k: 'Deployment', n: 'payment-service', r: 1}, pod: 'app=payment-service',
+            cont: {
+                n: 'payment-service',
+                i: '\u2026-payment-service:latest',
+                p: 8082,
+                r: 'req 256Mi/100m \u00b7 lim 512Mi/500m'
+            },
+            extra: ['MockPaymentGateway \u2014 no real PSP', 'double-entry ledger \u00b7 idempotent on orderId']
+        },
+
+        {
+            id: 'pg-user', x: 85, y: 890, w: 530, h: 250, accent: 'teal',
+            svc: {n: 'postgres-user', k: 'Headless', p: 5432}, sel: 'app=postgres-user',
+            ctrl: {k: 'StatefulSet', n: 'postgres-user', r: 1}, pod: 'postgres-user-0',
+            cont: {n: 'postgres', i: 'postgres:17-alpine', p: 5432, r: 'req 128Mi/100m \u00b7 lim 256Mi/500m'},
+            extra: ['db user_service \u00b7 PVC data 512Mi', 'Flyway V1 users, V2 initial admin']
+        },
+
+        {
+            id: 'pg-order', x: 1245, y: 890, w: 530, h: 250, accent: 'teal',
+            svc: {n: 'postgres-order', k: 'Headless', p: 5432}, sel: 'app=postgres-order',
+            ctrl: {k: 'StatefulSet', n: 'postgres-order', r: 1}, pod: 'postgres-order-0',
+            cont: {n: 'postgres', i: 'postgres:17-alpine', p: 5432, r: 'req 128Mi/100m \u00b7 lim 256Mi/500m'},
+            extra: ['orders \u00b7 order_items \u00b7 outbox_events', 'partial index on unpublished rows only']
+        },
+
+        {
+            id: 'pg-payment', x: 1825, y: 890, w: 530, h: 250, accent: 'teal',
+            svc: {n: 'postgres-payment', k: 'Headless', p: 5432}, sel: 'app=postgres-payment',
+            ctrl: {k: 'StatefulSet', n: 'postgres-payment', r: 1}, pod: 'postgres-payment-0',
+            cont: {n: 'postgres', i: 'postgres:17-alpine', p: 5432, r: 'req 128Mi/100m \u00b7 lim 256Mi/500m'},
+            extra: ['payments \u00b7 ledger_entries', 'every movement of money has two rows']
+        },
+
+        {
+            id: 'kafka', x: 1245, y: 1190, w: 530, h: 230, accent: 'amber',
+            svc: {n: 'kafka', k: 'Headless', p: 9092}, sel: 'app=kafka',
+            ctrl: {k: 'StatefulSet', n: 'kafka', r: 1}, pod: 'kafka-0',
+            cont: {n: 'kafka', i: 'apache/kafka:latest', p: '9092/9093', r: 'req 384Mi/150m \u00b7 lim 512Mi/500m'},
+            extra: ['KRaft \u2014 broker + controller, no ZooKeeper', 'order-events \u00b7 3 partitions \u00b7 RF 1 \u00b7 PVC 512Mi']
+        },
+
+        {
+            id: 'notification-service', x: 1825, y: 1190, w: 530, h: 230, accent: 'amber',
+            svc: null, sel: null,
+            ctrl: {k: 'Deployment', n: 'notification-service', r: 1}, pod: 'app=notification-service',
+            cont: {
+                n: 'notification-service',
+                i: '\u2026-notification-service:latest',
+                p: 'none',
+                r: 'req 192Mi/50m \u00b7 lim 384Mi/250m'
+            },
+            extra: ['web-application-type: none', 'retry 3\u00d7 1s \u2192 order-events.DLT']
+        },
+
+        {
+            id: 'mongos', x: 115, y: 1250, w: 475, h: 210, accent: 'teal',
+            svc: {n: 'mongos', k: 'ClusterIP', p: 27017}, sel: 'app=mongos',
+            ctrl: {k: 'Deployment', n: 'mongos', r: 1}, pod: 'app=mongos',
+            cont: {n: 'mongos', i: 'mongo:4.4', p: 27017, r: 'req 128Mi/100m \u00b7 lim 256Mi/500m'},
+            extra: ['stateless router \u2014 no PVC, no identity']
+        },
+
+        {
+            id: 'mongo-cfg', x: 670, y: 1250, w: 505, h: 210, accent: 'teal',
+            svc: {n: 'mongo-configsvr', k: 'Headless', p: 27019}, sel: 'app=mongo-configsvr',
+            ctrl: {k: 'StatefulSet', n: 'mongo-configsvr', r: 1}, pod: 'mongo-configsvr-0',
+            cont: {n: 'mongo-configsvr', i: 'mongo:4.4', p: 27019, r: 'req 192Mi/100m \u00b7 lim 384Mi/500m'},
+            extra: ['--configsvr --replSet=csrs \u00b7 PVC 512Mi']
+        },
+
+        {
+            id: 'mongo-s1', x: 115, y: 1480, w: 475, h: 210, accent: 'teal',
+            svc: {n: 'mongo-shard1', k: 'Headless', p: 27018}, sel: 'app=mongo-shard1',
+            ctrl: {k: 'StatefulSet', n: 'mongo-shard1', r: 1}, pod: 'mongo-shard1-0',
+            cont: {n: 'mongo-shard1', i: 'mongo:4.4', p: 27018, r: 'req 192Mi/100m \u00b7 lim 384Mi/500m'},
+            extra: ['--shardsvr --replSet=shard1 \u00b7 PVC 512Mi']
+        },
+
+        {
+            id: 'mongo-s2', x: 670, y: 1480, w: 505, h: 210, accent: 'teal',
+            svc: {n: 'mongo-shard2', k: 'Headless', p: 27018}, sel: 'app=mongo-shard2',
+            ctrl: {k: 'StatefulSet', n: 'mongo-shard2', r: 1}, pod: 'mongo-shard2-0',
+            cont: {n: 'mongo-shard2', i: 'mongo:4.4', p: 27018, r: 'req 192Mi/100m \u00b7 lim 384Mi/500m'},
+            extra: ['--shardsvr --replSet=shard2 \u00b7 PVC 512Mi']
+        }
+    ];
+
+    const GROUPS = [
+        {
+            x: 40,
+            y: 180,
+            w: 2360,
+            h: 1570,
+            l: 'Namespace: ecommerce',
+            s: 'one name scope \u00b7 18 objects \u00b7 no NetworkPolicy between them',
+            c: C.red
+        },
+        {
+            x: 85,
+            y: 1190,
+            w: 1110,
+            h: 520,
+            l: 'MongoDB sharded cluster \u2014 database product_service',
+            s: 'the application sees one database; mongos hides the split',
+            c: C.cyan
+        },
+        {
+            x: 1245,
+            y: 1470,
+            w: 1110,
+            h: 210,
+            l: 'Secrets \u2014 injected as env vars or mounted as files',
+            s: 'created by scripts/k8s-create-secrets.sh with openssl rand',
+            c: C.red
+        }
+    ];
+    const SECRETS = [
+        ['postgres-user-credentials', 'envFrom \u2192 postgres-user \u00b7 env \u2192 user-service'],
+        ['postgres-order-credentials', 'envFrom \u2192 postgres-order \u00b7 env \u2192 order-service'],
+        ['postgres-payment-credentials', 'envFrom \u2192 postgres-payment \u00b7 env \u2192 payment-service'],
+        ['redis-credentials', 'envFrom \u2192 redis \u00b7 env \u2192 api-gateway'],
+        ['mongo-credentials', 'env \u2192 mongos URI, product-service, init script'],
+        ['mongo-keyfile', 'file 0400 \u2192 configsvr, shard1, shard2, mongos'],
+        ['internal-api-credentials', 'env \u2192 order, product, payment'],
+        ['jwt-keys', 'files 0444 \u2192 user-service /etc/keys/*.pem']
+    ];
+    const EDGES = [
+        {
+            f: 'client',
+            t: 'ingress-ctl',
+            c: 'route',
+            pts: [[380, 90], [560, 90]],
+            lp: [470, 90],
+            l: 'HTTP :80 \u00b7 ecommerce.local'
+        },
+        {
+            f: 'ingress-ctl',
+            t: 'ingress',
+            c: 'route',
+            dash: 1,
+            pts: [[780, 140], [780, 170], [315, 170], [315, 240]],
+            lp: [547, 170],
+            l: 'reads this rule'
+        },
+        {
+            f: 'ingress',
+            t: 'api-gateway',
+            c: 'route',
+            pts: [[545, 330], [595, 330], [595, 241], [645, 241]],
+            lp: [595, 286],
+            l: 'backend :8080'
+        },
+        {
+            f: 'api-gateway',
+            t: 'redis',
+            c: 'data',
+            pts: [[1205, 330], [1275, 330], [1275, 241], [1345, 241]],
+            lp: [1275, 286],
+            l: 'redis:6379 buckets'
+        },
+
+        {
+            f: 'api-gateway',
+            t: 'user-service',
+            c: 'route',
+            d: 'M 925 440 C 925 478, 200 478, 200 500',
+            lp: [562, 474],
+            l: '/auth/** \u00b7 /users/**'
+        },
+        {
+            f: 'api-gateway',
+            t: 'product-service',
+            c: 'route',
+            d: 'M 925 440 C 925 478, 780 478, 780 500',
+            lp: [852, 474],
+            l: '/products/**'
+        },
+        {
+            f: 'api-gateway',
+            t: 'order-service',
+            c: 'route',
+            d: 'M 925 440 C 925 478, 1360 478, 1360 500',
+            lp: [1142, 474],
+            l: '/orders/**'
+        },
+        {
+            f: 'api-gateway',
+            t: 'payment-service',
+            c: 'route',
+            d: 'M 925 440 C 925 478, 1940 478, 1940 500',
+            lp: [1432, 474],
+            l: '/admin/ledger/**'
+        },
+
+        {
+            f: 'api-gateway',
+            t: 'user-service',
+            c: 'auth',
+            dash: 1,
+            pts: [[760, 440], [760, 450], [320, 450], [320, 500]],
+            lp: [540, 450],
+            l: 'GET /.well-known/jwks.json'
+        },
+        {
+            f: 'product-service',
+            t: 'user-service',
+            c: 'auth',
+            dash: 1,
+            pts: [[780, 780], [780, 798], [68, 798], [68, 532], [85, 532]],
+            lp: [505, 798],
+            l: 'JWKS'
+        },
+        {
+            f: 'order-service',
+            t: 'user-service',
+            c: 'auth',
+            dash: 1,
+            pts: [[1360, 780], [1360, 816], [60, 816], [60, 521], [85, 521]],
+            lp: [765, 816],
+            l: 'JWKS'
+        },
+        {
+            f: 'payment-service',
+            t: 'user-service',
+            c: 'auth',
+            dash: 1,
+            pts: [[1940, 780], [1940, 834], [52, 834], [52, 510], [85, 510]],
+            lp: [1500, 834],
+            l: 'JWKS'
+        },
+
+        {
+            f: 'order-service',
+            t: 'product-service',
+            c: 'sync',
+            pts: [[1300, 780], [1300, 852], [640, 852], [640, 521], [665, 521]],
+            lp: [1000, 852],
+            l: 'http://product-service:8083 \u00b7 reserve / confirm / release'
+        },
+        {
+            f: 'order-service',
+            t: 'payment-service',
+            c: 'sync',
+            pts: [[1775, 670], [1800, 670], [1800, 456], [2000, 456], [2000, 500]],
+            lp: [1900, 456],
+            l: 'http://payment-service:8082 \u00b7 charge / refund'
+        },
+
+        {
+            f: 'user-service',
+            t: 'pg-user',
+            c: 'data',
+            pts: [[200, 780], [200, 890]],
+            lp: [200, 874],
+            l: 'JDBC :5432 \u00b7 user_service'
+        },
+        {
+            f: 'order-service',
+            t: 'pg-order',
+            c: 'data',
+            pts: [[1500, 780], [1500, 890]],
+            lp: [1500, 874],
+            l: 'JDBC :5432 \u00b7 orders + outbox'
+        },
+        {
+            f: 'payment-service',
+            t: 'pg-payment',
+            c: 'data',
+            pts: [[2080, 780], [2080, 890]],
+            lp: [2080, 874],
+            l: 'JDBC :5432 \u00b7 payments + ledger'
+        },
+        {
+            f: 'product-service',
+            t: 'mongos',
+            c: 'data',
+            pts: [[860, 780], [860, 1160], [352, 1160], [352, 1250]],
+            lp: [612, 1160],
+            l: 'mongodb://mongos:27017'
+        },
+
+        {
+            f: 'order-service',
+            t: 'kafka',
+            c: 'async',
+            pts: [[1700, 780], [1700, 860], [1800, 860], [1800, 1160], [1510, 1160], [1510, 1190]],
+            lp: [1655, 1160],
+            l: 'produce order-events (2s poller)'
+        },
+        {
+            f: 'kafka',
+            t: 'notification-service',
+            c: 'async',
+            pts: [[1510, 1420], [1510, 1445], [2090, 1445], [2090, 1420]],
+            lp: [1800, 1445],
+            l: 'consume \u00b7 group notification-service'
+        },
+
+        {
+            f: 'mongos',
+            t: 'mongo-cfg',
+            c: 'data',
+            dash: 1,
+            pts: [[590, 1355], [630, 1355], [630, 1271], [670, 1271]],
+            lp: [630, 1313],
+            l: 'chunk map'
+        },
+        {f: 'mongos', t: 'mongo-s1', c: 'data', pts: [[352, 1460], [352, 1480]], lp: [352, 1470], l: 'route :27018'},
+        {
+            f: 'mongos',
+            t: 'mongo-s2',
+            c: 'data',
+            pts: [[470, 1460], [470, 1470], [922, 1470], [922, 1480]],
+            lp: [696, 1470],
+            l: 'route :27018'
+        }
+    ];
+    const CLS = {route: C.steel, sync: C.white, auth: C.red, data: C.cyan, async: C.amber};
+
+    const svg = document.getElementById('map');
+    const defs = E('defs');
+    const gp = E('pattern', {id: 'grid', width: 40, height: 40, patternUnits: 'userSpaceOnUse'});
+    gp.appendChild(E('path', {
+        d: 'M 40 0 L 0 0 0 40',
+        fill: 'none',
+        stroke: 'rgba(140,170,195,.055)',
+        'stroke-width': 1
+    }));
+    defs.appendChild(gp);
+    Object.keys(CLS).forEach(k => {
+        const m = E('marker', {
+            id: 'ar-' + k,
+            viewBox: '0 0 10 10',
+            refX: 9,
+            refY: 5,
+            markerWidth: 6.5,
+            markerHeight: 6.5,
+            orient: 'auto-start-reverse'
+        });
+        m.appendChild(E('path', {d: 'M0,0 L10,5 L0,10 z', fill: CLS[k]}));
+        defs.appendChild(m);
+    });
+    const ms = E('marker', {
+        id: 'ar-sel',
+        viewBox: '0 0 10 10',
+        refX: 9,
+        refY: 5,
+        markerWidth: 5,
+        markerHeight: 5,
+        orient: 'auto-start-reverse'
+    });
+    ms.appendChild(E('path', {d: 'M0,0 L10,5 L0,10 z', fill: C.faint}));
+    defs.appendChild(ms);
+    svg.appendChild(defs);
+
+    svg.appendChild(E('rect', {x: -60, y: -60, width: 2560, height: 1910, fill: C.bg}));
+    svg.appendChild(E('rect', {x: -60, y: -60, width: 2560, height: 1910, fill: 'url(#grid)'}));
+
+    const gF = E('g');
+    gF.appendChild(E('rect', {
+        x: -40,
+        y: -40,
+        width: 2520,
+        height: 1870,
+        fill: 'none',
+        stroke: C.hair,
+        'stroke-width': 1.2
+    }));
+    bk(gF, -40, -40, 2520, 1870, C.red, 46);
+    for (let x = 0; x <= 2440; x += 80) {
+        gF.appendChild(E('path', {
+            d: 'M ' + x + ' -40 L ' + x + ' ' + (x % 400 === 0 ? -26 : -33),
+            stroke: C.hair,
+            'stroke-width': 1
+        }));
+        gF.appendChild(E('path', {
+            d: 'M ' + x + ' 1830 L ' + x + ' ' + (x % 400 === 0 ? 1816 : 1823),
+            stroke: C.hair,
+            'stroke-width': 1
+        }));
+    }
+    for (let y = 0; y <= 1790; y += 80) {
+        gF.appendChild(E('path', {
+            d: 'M -40 ' + y + ' L ' + (y % 400 === 0 ? -26 : -33) + ' ' + y,
+            stroke: C.hair,
+            'stroke-width': 1
+        }));
+        gF.appendChild(E('path', {
+            d: 'M 2480 ' + y + ' L ' + (y % 400 === 0 ? 2466 : 2473) + ' ' + y,
+            stroke: C.hair,
+            'stroke-width': 1
+        }));
+    }
+    svg.appendChild(gF);
+
+    const gG = E('g'), gE = E('g'), gN = E('g');
+    svg.appendChild(gG);
+    svg.appendChild(gE);
+    svg.appendChild(gN);
+
+    GROUPS.forEach(g => {
+        gG.appendChild(E('rect', {
+            x: g.x, y: g.y, width: g.w, height: g.h, fill: 'rgba(255,255,255,.012)',
+            stroke: g.c, 'stroke-width': 1.1, 'stroke-dasharray': '10 7', opacity: .62
+        }));
+        bk(gG, g.x, g.y, g.w, g.h, g.c, 26);
+        gG.appendChild(T(g.x + 18, g.y + 27, g.l, {s: 13, w: 600, f: g.c, ls: .6, mw: g.w - 36}));
+        gG.appendChild(T(g.x + 18, g.y + 45, g.s, {s: 10, f: C.faint, ls: .4, mw: g.w - 36}));
+    });
+    gG.appendChild(T(60, 24, 'Outside the cluster', {s: 12, w: 600, f: C.faint, ls: .6}));
+
+    SECRETS.forEach((s, i) => {
+        const x = 1257 + (i % 4) * 275, y = 1520 + ((i / 4) | 0) * 80, w = 260;
+        gG.appendChild(E('rect', {
+            x,
+            y,
+            width: w,
+            height: 72,
+            fill: 'rgba(255,59,71,.05)',
+            stroke: 'rgba(255,59,71,.5)',
+            'stroke-width': 1
+        }));
+        bk(gG, x, y, w, 72, C.red, 10);
+        gG.appendChild(T(x + 12, y + 20, 'Secret', {s: 9, w: 600, f: C.red, ls: .8, mw: w - 24}));
+        gG.appendChild(T(x + 12, y + 39, s[0], {s: 11, w: 600, f: C.text, mw: w - 24}));
+        gG.appendChild(T(x + 12, y + 58, s[1], {s: 9, f: C.faint, mw: w - 24}));
+    });
+
+    NODES.forEach(n => {
+        const col = ACC[n.accent], wash = WASH[n.accent];
+        const g = E('g', {class: 'gnode', 'data-id': n.id});
+
+        if (n.type === 'plain') {
+            g.appendChild(E('rect', {
+                x: n.x,
+                y: n.y,
+                width: n.w,
+                height: n.h,
+                fill: C.plate,
+                stroke: col,
+                'stroke-width': 1.2,
+                opacity: .96
+            }));
+            bk(g, n.x, n.y, n.w, n.h, col, 14, 'bk');
+            g.appendChild(T(n.x + 16, n.y + 29, n.title, {s: 13, w: 600, f: col, ls: .5, mw: n.w - 32}));
+            g.appendChild(E('path', {
+                d: 'M ' + (n.x + 16) + ' ' + (n.y + 38) + ' H ' + (n.x + n.w - 16),
+                stroke: col,
+                'stroke-width': .7,
+                opacity: .45
+            }));
+            n.lines.forEach((l, i) => g.appendChild(T(n.x + 16, n.y + 58 + i * 18, l, {
+                s: 10.5,
+                f: C.dim,
+                mw: n.w - 32
+            })));
+            gN.appendChild(g);
+            return;
+        }
+
+        const SH = 42, GAP = 16;
+
+        g.appendChild(E('rect', {
+            x: n.x, y: n.y, width: n.w, height: SH, fill: wash, stroke: n.svc ? col : C.faint,
+            'stroke-width': 1.3, 'stroke-dasharray': n.svc ? null : '6 4', opacity: .97
+        }));
+        bk(g, n.x, n.y, n.w, SH, n.svc ? col : C.faint, 11, 'bk');
+        if (n.svc) {
+            g.appendChild(E('rect', {x: n.x + 12, y: n.y + 10, width: 5, height: 8, fill: col}));
+            const right = '  ' + n.svc.k + ' :' + n.svc.p;
+            g.appendChild(T(n.x + n.w - 12, n.y + 18, right.trim(), {s: 10, f: C.dim, a: 'end', ls: .3}));
+            g.appendChild(T(n.x + 24, n.y + 18, 'Service/' + n.svc.n, {
+                s: 12.5,
+                w: 600,
+                f: col,
+                ls: .3,
+                mw: n.w - 36 - 12 - wpx(right, 10)
+            }));
+            g.appendChild(T(n.x + 12, n.y + 34, 'selector: ' + n.sel, {s: 9.5, f: C.faint, mw: n.w - 24}));
+        } else {
+            g.appendChild(E('rect', {x: n.x + 12, y: n.y + 10, width: 5, height: 8, fill: 'none', stroke: C.faint}));
+            g.appendChild(T(n.x + 24, n.y + 18, 'No Service', {s: 12.5, w: 600, f: C.faint, ls: .3}));
+            g.appendChild(T(n.x + n.w - 12, n.y + 18, 'nothing selects these pods', {
+                s: 10,
+                f: C.faint,
+                a: 'end',
+                ls: .3
+            }));
+            g.appendChild(T(n.x + 12, n.y + 34, 'consumer only \u2014 connects outbound to kafka:9092', {
+                s: 9.5,
+                f: C.faint,
+                mw: n.w - 24
+            }));
+        }
+
+        if (n.svc) {
+            const mx = n.x + n.w / 2;
+            g.appendChild(E('path', {
+                d: 'M ' + mx + ' ' + (n.y + SH + 2) + ' L ' + mx + ' ' + (n.y + SH + GAP - 3),
+                stroke: C.faint, 'stroke-width': 1, 'stroke-dasharray': '3 3', 'marker-end': 'url(#ar-sel)'
+            }));
+            g.appendChild(T(mx + 12, n.y + SH + 13, 'label match', {s: 8, f: C.faint, ls: .3}));
+        }
+
+        const d = {x: n.x, y: n.y + SH + GAP, w: n.w, h: n.h - SH - GAP};
+        g.appendChild(E('rect', {
+            x: d.x,
+            y: d.y,
+            width: d.w,
+            height: d.h,
+            fill: C.block,
+            stroke: col,
+            'stroke-width': 1.3,
+            opacity: .97
+        }));
+        bk(g, d.x, d.y, d.w, d.h, col, 11, 'bk');
+        const rep = 'replicas: ' + n.ctrl.r;
+        g.appendChild(T(d.x + d.w - 12, d.y + 20, rep, {s: 10.5, f: C.dim, a: 'end', ls: .3}));
+        g.appendChild(T(d.x + 12, d.y + 20, n.ctrl.k + '/' + n.ctrl.n, {
+            s: 11.5,
+            w: 600,
+            f: col,
+            ls: .3,
+            mw: d.w - 24 - 14 - wpx(rep, 10.5)
+        }));
+        g.appendChild(T(d.x + 12, d.y + 35, n.ctrl.k === 'Deployment' ? '\u2514 ReplicaSet' : '\u2514 stable pod name \u00b7 own PersistentVolumeClaim',
+            {s: 9, f: C.faint, mw: d.w - 24}));
+
+        const p = {x: d.x + 10, y: d.y + 43, w: d.w - 20, h: d.h - 53};
+        g.appendChild(E('rect', {
+            x: p.x,
+            y: p.y,
+            width: p.w,
+            height: p.h,
+            fill: C.pod,
+            stroke: C.hair,
+            'stroke-width': 1
+        }));
+        bk(g, p.x, p.y, p.w, p.h, C.hair, 9);
+        const podline = n.ctrl.k === 'Deployment' ? ('Pod  ' + n.pod) : ('Pod  ' + n.pod + '  \u00b7  ' + n.sel);
+        g.appendChild(T(p.x + 10, p.y + 17, podline, {s: 10.5, w: 600, f: C.text, ls: .3, mw: p.w - 20}));
+
+        const k = {x: p.x + 9, y: p.y + 24, w: p.w - 18, h: 52};
+        g.appendChild(E('rect', {
+            x: k.x,
+            y: k.y,
+            width: k.w,
+            height: k.h,
+            fill: wash,
+            stroke: col,
+            'stroke-width': .9
+        }));
+        g.appendChild(T(k.x + 10, k.y + 16, 'Container ' + n.cont.n, {s: 10.5, w: 600, f: col, ls: .3, mw: k.w - 20}));
+        g.appendChild(T(k.x + 10, k.y + 31, n.cont.i + '   :' + n.cont.p, {s: 9.5, f: C.dim, mw: k.w - 20}));
+        g.appendChild(T(k.x + 10, k.y + 45, n.cont.r, {s: 9.5, f: C.dim, mw: k.w - 20}));
+
+        n.extra.forEach((e, i) => g.appendChild(T(p.x + 10, k.y + k.h + 14 + i * 14, e, {
+            s: 9.5,
+            f: C.faint,
+            mw: p.w - 20
+        })));
+        gN.appendChild(g);
+    });
+
+    EDGES.forEach(e => {
+        const col = CLS[e.c];
+        const g = E('g', {class: 'edge', 'data-f': e.f, 'data-t': e.t});
+        const d = e.d || ('M ' + e.pts.map(p => p[0] + ' ' + p[1]).join(' L '));
+        g.appendChild(E('path', {
+            d,
+            fill: 'none',
+            stroke: col,
+            'stroke-width': 5,
+            opacity: .09,
+            'stroke-linejoin': 'round'
+        }));
+        g.appendChild(E('path', {
+            d, fill: 'none', stroke: col, 'stroke-width': 1.5, 'stroke-linejoin': 'round',
+            'stroke-dasharray': e.dash ? '7 5' : null, 'marker-end': 'url(#ar-' + e.c + ')', opacity: .95
+        }));
+        const w = wpx(e.l, 9.6) + 16;
+        g.appendChild(E('rect', {
+            x: e.lp[0] - w / 2,
+            y: e.lp[1] - 10,
+            width: w,
+            height: 20,
+            fill: C.bg,
+            stroke: col,
+            'stroke-width': .7,
+            opacity: .95
+        }));
+        g.appendChild(T(e.lp[0], e.lp[1] + 4, e.l, {s: 9.6, f: col, a: 'middle'}));
+        gE.appendChild(g);
+    });
+
+    gN.addEventListener('mouseover', ev => {
+        const g = ev.target.closest('.gnode');
+        if (g) iso(g.dataset.id);
+    });
+    gN.addEventListener('mouseout', ev => {
+        if (ev.target.closest('.gnode')) iso(null);
+    });
+
+    function iso(id) {
+        if (!id) {
+            svg.classList.remove('iso');
+            gN.querySelectorAll('.gnode').forEach(n => n.classList.remove('on', 'sel'));
+            gE.querySelectorAll('.edge').forEach(n => n.classList.remove('on'));
+            return;
+        }
+        const s = new Set([id]);
+        EDGES.forEach(e => {
+            if (e.f === id) s.add(e.t);
+            if (e.t === id) s.add(e.f);
+        });
+        svg.classList.add('iso');
+        gN.querySelectorAll('.gnode').forEach(n => {
+            n.classList.toggle('on', s.has(n.dataset.id));
+            n.classList.toggle('sel', n.dataset.id === id);
+        });
+        gE.querySelectorAll('.edge').forEach(n => n.classList.toggle('on', n.dataset.f === id || n.dataset.t === id));
+    }
+
+    const BASE = {x: -60, y: -60, w: 2560, h: 1910};
+    let v = {x: -60, y: -60, w: 2560, h: 1910};
+
+    function setV() {
+        svg.setAttribute('viewBox', v.x + ' ' + v.y + ' ' + v.w + ' ' + v.h);
+    }
+
+    function toUser(cx, cy) {
+        const r = svg.getBoundingClientRect(), sc = Math.min(r.width / v.w, r.height / v.h);
+        const ox = (r.width - v.w * sc) / 2, oy = (r.height - v.h * sc) / 2;
+        return {x: v.x + (cx - r.left - ox) / sc, y: v.y + (cy - r.top - oy) / sc};
+    }
+
+    svg.addEventListener('wheel', e => {
+        e.preventDefault();
+        const p = toUser(e.clientX, e.clientY), f = e.deltaY > 0 ? 1.12 : 1 / 1.12;
+        const nw = Math.max(BASE.w / 9, Math.min(BASE.w * 1.6, v.w * f)), k = nw / v.w;
+        v = {x: p.x - (p.x - v.x) * k, y: p.y - (p.y - v.y) * k, w: nw, h: v.h * k};
+        setV();
+    }, {passive: false});
+    let drag = null;
+    svg.addEventListener('pointerdown', e => {
+        e.preventDefault();
+        drag = {x: e.clientX, y: e.clientY, vx: v.x, vy: v.y};
+        svg.classList.add('drag');
+        svg.setPointerCapture(e.pointerId);
+    });
+    svg.addEventListener('pointermove', e => {
+        if (!drag) return;
+        const r = svg.getBoundingClientRect(), sc = Math.min(r.width / v.w, r.height / v.h);
+        v.x = drag.vx - (e.clientX - drag.x) / sc;
+        v.y = drag.vy - (e.clientY - drag.y) / sc;
+        setV();
+    });
+    ['pointerup', 'pointercancel'].forEach(t => svg.addEventListener(t, () => {
+        drag = null;
+        svg.classList.remove('drag');
+    }));
+    svg.addEventListener('dblclick', e => {
+        e.preventDefault();
+        v = {x: BASE.x, y: BASE.y, w: BASE.w, h: BASE.h};
+        setV();
+    });
+    svg.addEventListener('selectstart', e => e.preventDefault());
+</script>
+</body>
+</html>
