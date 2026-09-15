@@ -37,7 +37,7 @@ tasks.withType<Test> {
 }
 
 val grpcVersion = "1.74.0"
-val protocVersion = "4.31.1"
+val protocVersion = "4.36.1"
 
 protobuf {
     protoc {
