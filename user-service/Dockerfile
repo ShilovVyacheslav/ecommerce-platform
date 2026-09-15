@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-FROM eclipse-temurin:21-jdk-noble AS builder
+FROM eclipse-temurin:25-jdk-noble AS builder
 WORKDIR /workspace
 
 RUN apt-get update \
@@ -14,7 +14,7 @@ RUN ./scripts/generate-jwt-keys.sh
 RUN --mount=type=cache,target=/root/.gradle \
     ./gradlew :user-service:bootJar --no-daemon -x test
 
-FROM eclipse-temurin:21-jre-noble AS runtime
+FROM eclipse-temurin:25-jre-noble AS runtime
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends curl \
