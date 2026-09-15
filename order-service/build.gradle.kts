@@ -63,7 +63,7 @@ dependencies {
 dependencyManagement {
     imports {
         mavenBom("org.springframework.cloud:spring-cloud-dependencies:${property("springCloudVersion")}")
-        mavenBom("org.springframework.grpc:spring-grpc-dependencies:0.12.0")
+        mavenBom("org.springframework.grpc:spring-grpc-dependencies:1.1.1")
     }
 }
 

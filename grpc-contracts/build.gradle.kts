@@ -22,7 +22,7 @@ repositories {
 
 dependencyManagement {
     imports {
-        mavenBom("org.springframework.grpc:spring-grpc-dependencies:0.12.0")
+        mavenBom("org.springframework.grpc:spring-grpc-dependencies:1.1.1")
     }
 }
 
