@@ -36,7 +36,7 @@ tasks.withType<Test> {
     useJUnitPlatform()
 }
 
-val grpcVersion = "1.74.0"
+val grpcVersion = "1.84.0"
 val protocVersion = "4.31.1"
 
 protobuf {
