@@ -35,6 +35,8 @@ spec:
               value: "8084"
             - name: EUREKA_CLIENT_ENABLED
               value: "false"
+            - name: PRODUCT_SERVICE_GRPC_ADDRESS
+              value: dns:///product-service-grpc.ecommerce.svc.cluster.local:9083
             - name: SPRING_DATASOURCE_URL
               value: jdbc:postgresql://postgres-order:5432/order_service
             - name: SPRING_DATASOURCE_USERNAME

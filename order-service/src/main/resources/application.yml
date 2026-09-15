@@ -28,6 +28,25 @@ spring:
       acks: all
       properties:
         enable.idempotence: true
+  grpc:
+    client:
+      channels:
+        product-service:
+          address: ${PRODUCT_SERVICE_GRPC_ADDRESS:static://product-service:9083}
+          default-deadline: 3s
+          health:
+            enabled: true
+          service-config:
+            methodConfig:
+              - name:
+                  - service: "ecommerce.product.v1.ProductService"
+                retryPolicy:
+                  maxAttempts: 3.0
+                  initialBackoff: "0.2s"
+                  maxBackoff: "1s"
+                  backoffMultiplier: 2.0
+                  retryableStatusCodes:
+                    - "UNAVAILABLE"
 
 server:
   port: ${SERVER_PORT:8084}

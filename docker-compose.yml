@@ -155,8 +155,10 @@ services:
       SPRING_DATA_MONGODB_URI: mongodb://${PRODUCT_MONGO_USER}:${PRODUCT_MONGO_PASSWORD}@mongo-product:27017/product_service?authSource=admin
       SECURITY_JWT_JWKS_URI: ${SECURITY_JWT_JWKS_URI}
       INTERNAL_API_KEY: ${INTERNAL_API_KEY}
+      GRPC_SERVER_PORT: ${PRODUCT_SERVICE_GRPC_PORT}
     ports:
       - "${PRODUCT_SERVICE_PORT}:${PRODUCT_SERVICE_PORT}"
+      - "${PRODUCT_SERVICE_GRPC_PORT}:${PRODUCT_SERVICE_GRPC_PORT}"
     depends_on:
       mongo-product:
         condition: service_healthy
@@ -180,6 +182,7 @@ services:
       SPRING_DATASOURCE_PASSWORD: ${ORDER_DB_PASSWORD}
       SECURITY_JWT_JWKS_URI: ${SECURITY_JWT_JWKS_URI}
       INTERNAL_API_KEY: ${INTERNAL_API_KEY}
+      PRODUCT_SERVICE_GRPC_ADDRESS: static://product-service:${PRODUCT_SERVICE_GRPC_PORT}
     ports:
       - "${ORDER_SERVICE_PORT}:${ORDER_SERVICE_PORT}"
     depends_on:

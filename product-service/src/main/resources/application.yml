@@ -11,6 +11,9 @@ spring:
       resourceserver:
         jwt:
           jwk-set-uri: ${SECURITY_JWT_JWKS_URI}
+  grpc:
+    server:
+      port: ${GRPC_SERVER_PORT:9083}
 
 server:
   port: ${SERVER_PORT:8083}

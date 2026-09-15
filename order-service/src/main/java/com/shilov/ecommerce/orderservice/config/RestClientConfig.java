@@ -20,14 +20,6 @@ public class RestClientConfig {
     }
 
     @Bean
-    public RestClient productServiceRestClient(RestClient.Builder loadBalancedRestClientBuilder) {
-        return loadBalancedRestClientBuilder
-                .baseUrl("http://product-service")
-                .requestInterceptor(correlationIdPropagatingInterceptor())
-                .build();
-    }
-
-    @Bean
     public RestClient paymentServiceRestClient(RestClient.Builder loadBalancedRestClientBuilder) {
         return loadBalancedRestClientBuilder
                 .baseUrl("http://payment-service")

@@ -24,7 +24,10 @@ USER spring:spring
 
 ARG SERVER_PORT=8083
 ENV SERVER_PORT=${SERVER_PORT}
+ARG GRPC_SERVER_PORT=9083
+ENV GRPC_SERVER_PORT=${GRPC_SERVER_PORT}
 EXPOSE ${SERVER_PORT}
+EXPOSE ${GRPC_SERVER_PORT}
 
 HEALTHCHECK --interval=10s --timeout=5s --start-period=30s --retries=10 \
     CMD curl -f http://localhost:${SERVER_PORT}/actuator/health || exit 1
