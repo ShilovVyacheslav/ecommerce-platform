@@ -1,0 +1,42 @@
+version: 2
+updates:
+  - package-ecosystem: "gradle"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    groups:
+      spring:
+        patterns:
+          - "org.springframework.boot:*"
+          - "org.springframework.cloud:*"
+          - "org.springframework.grpc:*"
+      grpc:
+        patterns:
+          - "io.grpc:*"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+
+  - package-ecosystem: "docker"
+    directory: "/api-gateway"
+    schedule: { interval: "weekly" }
+  - package-ecosystem: "docker"
+    directory: "/discovery-server"
+    schedule: { interval: "weekly" }
+  - package-ecosystem: "docker"
+    directory: "/notification-service"
+    schedule: { interval: "weekly" }
+  - package-ecosystem: "docker"
+    directory: "/order-service"
+    schedule: { interval: "weekly" }
+  - package-ecosystem: "docker"
+    directory: "/payment-service"
+    schedule: { interval: "weekly" }
+  - package-ecosystem: "docker"
+    directory: "/product-service"
+    schedule: { interval: "weekly" }
+  - package-ecosystem: "docker"
+    directory: "/user-service"
+    schedule: { interval: "weekly" }
