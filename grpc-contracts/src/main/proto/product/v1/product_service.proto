@@ -1,0 +1,58 @@
+syntax = "proto3";
+
+package ecommerce.product.v1;
+
+option java_package = "com.shilov.ecommerce.grpc.product.v1";
+option java_multiple_files = true;
+option java_outer_classname = "ProductServiceProto";
+
+service ProductService {
+  rpc GetProduct(GetProductRequest) returns (ProductSnapshot);
+  rpc ReserveStock(ReserveStockRequest) returns (ReservationResponse);
+  rpc ConfirmReservation(OrderReference) returns (ReservationResponse);
+  rpc ReleaseReservation(OrderReference) returns (ReservationResponse);
+}
+
+message GetProductRequest {
+  string product_id = 1;
+}
+
+message ProductSnapshot {
+  string id = 1;
+  string name = 2;
+  string price = 3;
+  string currency = 4;
+  bool active = 5;
+}
+
+message OrderReference {
+  string order_id = 1;
+}
+
+message ReserveStockRequest {
+  string order_id = 1;
+  repeated ReservationItem items = 2;
+}
+
+message ReservationItem {
+  string product_id = 1;
+  int32 quantity = 2;
+}
+
+message ReservationResponse {
+  string reservation_id = 1;
+  repeated ReservationLine items = 2;
+}
+
+message ReservationLine {
+  string product_id = 1;
+  int32 quantity = 2;
+  ReservationStatus status = 3;
+}
+
+enum ReservationStatus {
+  RESERVATION_STATUS_UNSPECIFIED = 0;
+  RESERVED = 1;
+  CONFIRMED = 2;
+  RELEASED = 3;
+}

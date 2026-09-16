@@ -28,6 +28,7 @@ extra["springCloudVersion"] = "2025.0.2"
 
 dependencies {
     implementation(project(":"))
+    implementation(project(":grpc-contracts"))
     implementation("org.springframework.boot:spring-boot-starter-web")
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
     implementation("org.springframework.boot:spring-boot-starter-validation")
@@ -38,6 +39,9 @@ dependencies {
     implementation("org.springframework.cloud:spring-cloud-starter-loadbalancer")
     implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.7.0")
     implementation("org.springframework.kafka:spring-kafka")
+
+    implementation("org.springframework.grpc:spring-grpc-client-spring-boot-starter")
+    implementation("io.grpc:grpc-services")
 
     implementation("org.flywaydb:flyway-database-postgresql")
     runtimeOnly("org.postgresql:postgresql")
@@ -59,6 +63,7 @@ dependencies {
 dependencyManagement {
     imports {
         mavenBom("org.springframework.cloud:spring-cloud-dependencies:${property("springCloudVersion")}")
+        mavenBom("org.springframework.grpc:spring-grpc-dependencies:0.12.0")
     }
 }
 

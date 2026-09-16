@@ -1,92 +1,88 @@
 package com.shilov.ecommerce.orderservice.client;
 
-import com.shilov.ecommerce.config.props.InternalApiProperties;
+import com.shilov.ecommerce.grpc.product.v1.GetProductRequest;
+import com.shilov.ecommerce.grpc.product.v1.OrderReference;
+import com.shilov.ecommerce.grpc.product.v1.ProductServiceGrpc;
+import com.shilov.ecommerce.grpc.product.v1.ProductSnapshot;
+import com.shilov.ecommerce.grpc.product.v1.ReservationItem;
+import com.shilov.ecommerce.grpc.product.v1.ReserveStockRequest;
 import com.shilov.ecommerce.orderservice.dto.client.ProductSnapshotDto;
 import com.shilov.ecommerce.orderservice.dto.client.ReservationItemRequestDto;
-import com.shilov.ecommerce.orderservice.dto.client.ReservationRequestDto;
 import com.shilov.ecommerce.orderservice.exception.OrderException;
 import com.shilov.ecommerce.orderservice.exception.SagaStepException;
+import io.grpc.Status;
+import io.grpc.StatusRuntimeException;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
-import org.springframework.web.client.HttpClientErrorException;
-import org.springframework.web.client.RestClient;
-import org.springframework.web.client.RestClientException;
 
+import java.math.BigDecimal;
 import java.util.List;
-
-import static com.shilov.ecommerce.constants.Constants.API_VERSION_V1;
-import static com.shilov.ecommerce.constants.Constants.INTERNAL_API_KEY_HEADER;
-import static com.shilov.ecommerce.constants.Constants.INTERNAL_VERSION_V1;
 
 @Component
 @RequiredArgsConstructor
 public class ProductServiceClient {
 
-    private static final String RESERVATIONS_PATH = INTERNAL_VERSION_V1 + "/inventory/reservations";
-
-    private final RestClient productServiceRestClient;
-    private final InternalApiProperties internalApiProperties;
+    private final ProductServiceGrpc.ProductServiceBlockingStub productServiceBlockingStub;
 
     public ProductSnapshotDto getProduct(String productId) {
         try {
-            return productServiceRestClient
-                    .get()
-                    .uri(API_VERSION_V1 + "/products/{id}", productId)
-                    .retrieve()
-                    .body(ProductSnapshotDto.class);
-        } catch (HttpClientErrorException.NotFound ex) {
-            throw OrderException.productUnavailable();
-        } catch (RestClientException ex) {
+            ProductSnapshot productSnapshot = productServiceBlockingStub.getProduct(GetProductRequest.newBuilder()
+                    .setProductId(productId).build());
+            return ProductSnapshotDto.builder()
+                    .id(productSnapshot.getId())
+                    .name(productSnapshot.getName())
+                    .price(new BigDecimal(productSnapshot.getPrice()))
+                    .currency(productSnapshot.getCurrency())
+                    .active(productSnapshot.getActive())
+                    .build();
+        } catch (StatusRuntimeException ex) {
+            if (ex.getStatus().getCode() == Status.Code.NOT_FOUND) {
+                throw OrderException.productUnavailable();
+            }
             throw SagaStepException.productServiceUnavailable(ex);
         }
     }
 
     public void reserve(String orderId, List<ReservationItemRequestDto> items) {
         try {
-            productServiceRestClient
-                    .post()
-                    .uri(RESERVATIONS_PATH)
-                    .header(INTERNAL_API_KEY_HEADER, internalApiProperties.getApiKey())
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .body(ReservationRequestDto.builder()
-                            .orderId(orderId)
-                            .items(items)
-                            .build())
-                    .retrieve()
-                    .toBodilessEntity();
-        } catch (HttpClientErrorException.Conflict ex) {
-            throw SagaStepException.insufficientStock();
-        } catch (HttpClientErrorException.NotFound ex) {
-            throw SagaStepException.productNotFound();
-        } catch (RestClientException ex) {
-            throw SagaStepException.productServiceUnavailable(ex);
+            productServiceBlockingStub.reserveStock(ReserveStockRequest.newBuilder()
+                    .setOrderId(orderId)
+                    .addAllItems(items.stream().map(this::toReservationItem).toList())
+                    .build());
+        } catch (StatusRuntimeException ex) {
+            throw switch (ex.getStatus().getCode()) {
+                case FAILED_PRECONDITION -> SagaStepException.insufficientStock();
+                case NOT_FOUND -> SagaStepException.productNotFound();
+                default -> SagaStepException.productServiceUnavailable(ex);
+            };
         }
     }
 
     public void release(String orderId) {
         try {
-            productServiceRestClient
-                    .post()
-                    .uri(RESERVATIONS_PATH + "/{id}/release", orderId)
-                    .header(INTERNAL_API_KEY_HEADER, internalApiProperties.getApiKey())
-                    .retrieve()
-                    .toBodilessEntity();
-        } catch (RestClientException ex) {
+            productServiceBlockingStub.releaseReservation(orderReference(orderId));
+        } catch (StatusRuntimeException ex) {
             throw SagaStepException.stockReleaseFailed(ex);
         }
     }
 
     public void confirm(String orderId) {
         try {
-            productServiceRestClient
-                    .post()
-                    .uri(RESERVATIONS_PATH + "/{id}/confirm", orderId)
-                    .header(INTERNAL_API_KEY_HEADER, internalApiProperties.getApiKey())
-                    .retrieve()
-                    .toBodilessEntity();
-        } catch (RestClientException ex) {
+            productServiceBlockingStub.confirmReservation(orderReference(orderId));
+        } catch (StatusRuntimeException ex) {
             throw SagaStepException.stockConfirmationFailed(ex);
         }
     }
+
+    private ReservationItem toReservationItem(ReservationItemRequestDto item) {
+        return ReservationItem.newBuilder()
+                .setProductId(item.getProductId())
+                .setQuantity(item.getQuantity())
+                .build();
+    }
+
+    private OrderReference orderReference(String orderId) {
+        return OrderReference.newBuilder().setOrderId(orderId).build();
+    }
+
 }
