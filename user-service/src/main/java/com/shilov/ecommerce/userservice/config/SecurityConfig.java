@@ -37,9 +37,6 @@ import java.time.Duration;
 public class SecurityConfig {
 
     private static final String[] AUTH_WHITE_LIST = {
-            "/swagger-ui.html",
-            "/swagger-ui/**",
-            "/swagger-resources/**",
             "/v3/api-docs/**",
             "/.well-known/jwks.json",
             "/api/v1/auth/register",

@@ -17,6 +17,15 @@ public class SecurityConfig {
     private static final String[] PUBLIC_PATHS = {
             "/api/v1/auth/register",
             "/api/v1/auth/login",
+            "/swagger-ui.html",
+            "/swagger-ui/**",
+            "/webjars/**",
+            "/v3/api-docs",
+            "/v3/api-docs/**",
+            "/user-service/v3/api-docs",
+            "/order-service/v3/api-docs",
+            "/product-service/v3/api-docs/public",
+            "/payment-service/v3/api-docs/public",
     };
 
     @Bean

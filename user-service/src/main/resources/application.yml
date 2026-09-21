@@ -38,3 +38,9 @@ management:
   metrics:
     tags:
       application: ${spring.application.name}
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    tags-sorter: alpha
+    operations-sorter: alpha

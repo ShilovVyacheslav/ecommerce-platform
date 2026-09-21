@@ -65,6 +65,12 @@ management:
     tags:
       application: ${spring.application.name}
 
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    tags-sorter: alpha
+    operations-sorter: alpha
+
 app:
   internal:
     api-key: ${INTERNAL_API_KEY}
