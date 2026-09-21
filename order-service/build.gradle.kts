@@ -39,6 +39,7 @@ dependencies {
     implementation("org.springframework.cloud:spring-cloud-starter-loadbalancer")
     implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.7.0")
     implementation("org.springframework.kafka:spring-kafka")
+    implementation("io.micrometer:micrometer-registry-prometheus")
 
     implementation("org.springframework.grpc:spring-grpc-client-spring-boot-starter")
     implementation("io.grpc:grpc-services")

@@ -29,9 +29,11 @@ extra["springCloudVersion"] = "2025.0.2"
 dependencies {
     implementation(project(":"))
     implementation("org.springframework.boot:spring-boot-starter")
+    implementation("org.springframework.boot:spring-boot-starter-web")
+    implementation("org.springframework.boot:spring-boot-starter-actuator")
     implementation("org.springframework.kafka:spring-kafka")
     implementation("com.fasterxml.jackson.core:jackson-databind")
-    implementation("jakarta.servlet:jakarta.servlet-api")
+    implementation("io.micrometer:micrometer-registry-prometheus")
 
     compileOnly("org.projectlombok:lombok")
     annotationProcessor("org.projectlombok:lombok")

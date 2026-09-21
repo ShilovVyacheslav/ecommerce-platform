@@ -1,7 +1,6 @@
 spring:
   main:
     banner-mode: off
-    web-application-type: none
   application:
     name: notification-service
   kafka:
@@ -12,8 +11,14 @@ spring:
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
 
+server:
+  port: ${SERVER_PORT:8085}
+
 management:
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: health,info,prometheus
+  metrics:
+    tags:
+      application: ${spring.application.name}

@@ -1,0 +1,7 @@
+apiVersion: 1
+providers:
+  - name: ecommerce-platform
+    folder: ecommerce-platform
+    type: file
+    options:
+      path: /var/lib/grafana/dashboards
