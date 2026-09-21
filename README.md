@@ -13,6 +13,8 @@
 ![Docker](https://img.shields.io/badge/Docker%20Compose-2496ED?logo=docker&logoColor=white)
 ![Kubernetes](https://img.shields.io/badge/Kubernetes-326CE5?logo=kubernetes&logoColor=white)
 ![Apache Kafka](https://img.shields.io/badge/Apache%20Kafka-5A1A3A?logo=apachekafka&logoColor=white)
+![Prometheus](https://img.shields.io/badge/Prometheus-E6522C?logo=prometheus&logoColor=white)
+![Grafana](https://img.shields.io/badge/Grafana-F46800?logo=grafana&logoColor=white)
 [![CI](https://github.com/ShilovVyacheslav/ecommerce-platform/actions/workflows/ci.yml/badge.svg)](https://github.com/ShilovVyacheslav/ecommerce-platform/actions/workflows/ci.yml)
 ![License](https://img.shields.io/badge/License-MIT-yellow)
 
@@ -26,7 +28,23 @@
 
 ---
 
+## | Highlights
+
+- **API Documentation** — aggregated OpenAPI 3 / Swagger UI for all services behind the gateway
+- **JWT Auth** — RS256, validated independently by every service via JWKS, no shared secret
+- **Saga Pattern** — order-service orchestrates order/payment/product with compensating actions on failure
+- **gRPC** — contract-first internal order-service ↔ product-service communication
+- **Outbox + Kafka** — transactional outbox, dead-letter topic with retry on consume
+- **Rate Limiting** — Redis-backed distributed rate limiter at the API gateway
+- **Ledger** — double-entry accounting in payment-service, balanced debit/credit entries
+- **Prometheus + Grafana** — metrics across all services, including custom business metrics
+- **Kubernetes** — full manifests, StatefulSets for Mongo/Kafka/Postgres, Ingress, scripted secrets
+
+---
+
 ## | Getting Started
+
+**API Documentation: [http://localhost:8080/swagger-ui.html](http://localhost:8080/swagger-ui.html)**
 
 **Default Admin Account**
 
@@ -76,9 +94,9 @@ docker compose --env-file .env.docker up --build -d
 **If that struggles** — Docker Desktop can choke trying to build six JVM images and start 10+ containers all at once, especially on constrained CPU/network. Bring the stack up in stages instead:
 
 ```bash
-# 1. Infrastructure first — everything else depends on these being healthy
-docker compose --env-file .env.docker up -d postgres-user \
-  postgres-payment postgres-order mongo-product redis kafka discovery-server
+# 1. Infrastructure first
+docker compose --env-file .env.docker up -d postgres-user postgres-payment \
+  postgres-order mongo-product redis kafka discovery-server prometheus grafana
 
 # 2. Build each service image one by one
 docker compose --env-file .env.docker build user-service
@@ -88,7 +106,7 @@ docker compose --env-file .env.docker build order-service
 docker compose --env-file .env.docker build api-gateway
 docker compose --env-file .env.docker build notification-service
 
-# 3. Start services in dependency order — user-service first
+# 3. Start services in dependency order
 docker compose --env-file .env.docker up -d user-service
 docker compose --env-file .env.docker up -d payment-service
 docker compose --env-file .env.docker up -d product-service
@@ -96,6 +114,10 @@ docker compose --env-file .env.docker up -d order-service
 docker compose --env-file .env.docker up -d api-gateway
 docker compose --env-file .env.docker up -d notification-service
 ```
+
+**Monitoring** 
+- Prometheus: http://localhost:9090
+- Grafana: http://localhost:3000 (`admin` / `GRAFANA_ADMIN_PASSWORD` from `.env.docker`)
 
 **Shut down:**
 
@@ -164,7 +186,7 @@ cd C:\Path\To\Redis
 </td></tr>
 </table>
 
-**Terminal 2 — discovery-server** (no `local` profile needed):
+**Terminal 2 — discovery-server**:
 
 <table>
 <tr><td><strong>bash / zsh / sh</strong></td>
@@ -269,28 +291,7 @@ cd C:\Path\To\Redis
 </td></tr>
 </table>
 
-**Terminal 7 — api-gateway** (start last — it resolves `lb://` against the other five):
-
-<table>
-<tr><td><strong>bash / zsh / sh</strong></td>
-<td>
-
-```bash
-./gradlew :api-gateway:bootRun --args='--spring.profiles.active=local'
-```
-
-</td></tr>
-<tr><td><strong>PowerShell / cmd</strong></td>
-<td>
-
-```bash
-.\gradlew.bat :api-gateway:bootRun --args='--spring.profiles.active=local'
-```
-
-</td></tr>
-</table>
-
-**Terminal 8 — notification-service:**
+**Terminal 7 — notification-service:**
 
 <table>
 <tr><td><strong>bash / zsh / sh</strong></td>
@@ -306,6 +307,27 @@ cd C:\Path\To\Redis
 
 ```bash
 .\gradlew.bat :notification-service:bootRun --args='--spring.profiles.active=local'
+```
+
+</td></tr>
+</table>
+
+**Terminal 8 — api-gateway** (start last — it resolves `lb://` against the other five):
+
+<table>
+<tr><td><strong>bash / zsh / sh</strong></td>
+<td>
+
+```bash
+./gradlew :api-gateway:bootRun --args='--spring.profiles.active=local'
+```
+
+</td></tr>
+<tr><td><strong>PowerShell / cmd</strong></td>
+<td>
+
+```bash
+.\gradlew.bat :api-gateway:bootRun --args='--spring.profiles.active=local'
 ```
 
 </td></tr>
@@ -380,6 +402,10 @@ kubectl wait --for=condition=ready pod -l app=user-service -n ecommerce --timeou
 
 kubectl apply -f k8s/services/
 kubectl get pods -n ecommerce -w
+
+kubectl apply -f k8s/monitoring/
+kubectl wait --for=condition=ready pod -l app=prometheus -n ecommerce --timeout=120s
+kubectl wait --for=condition=ready pod -l app=grafana -n ecommerce --timeout=120s
 ```
 Wait until everything shows `1/1 Running`, then `Ctrl+C`.
 
@@ -390,19 +416,15 @@ minikube service api-gateway -n ecommerce --url
 ```
 That URL is a direct route to `api-gateway`, equivalent to `http://localhost:8080` in the other two options.
 
+
+**Access monitoring:**
+```bash
+kubectl port-forward -n ecommerce svc/prometheus 9090:9090 &
+kubectl port-forward -n ecommerce svc/grafana 3000:3000 &
+```
+- Prometheus — http://localhost:9090
+- Grafana — http://localhost:3000 (`admin` / from `grafana-credentials`).
+
 </details>
-
----
-
-## | Architecture
-
-| Service | Port | Responsibility |
-| :--- | :--- | :--- |
-| **discovery-server** | `8761` | Eureka service registry |
-| **api-gateway** | `8080` | Single entry point, request routing (`lb://`), JWT validation at the edge, Redis-backed rate limiting |
-| **user-service** | `8081` | Auth (register/login/refresh), user management, JWT issuing via RSA + JWKS |
-| **payment-service** | `8082` | Payment processing |
-| **product-service** | `8083` | Product catalog |
-| **order-service** | `8084` | Order management |
 
 ---

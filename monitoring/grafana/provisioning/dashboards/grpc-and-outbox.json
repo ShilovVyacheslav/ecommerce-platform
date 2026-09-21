@@ -1,0 +1,44 @@
+{
+  "title": "ecommerce-platform · gRPC & Outbox",
+  "schemaVersion": 39,
+  "editable": true,
+  "time": { "from": "now-1h", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "title": "gRPC calls/sec by method",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 0, "w": 12, "h": 8 },
+      "targets": [
+        { "expr": "sum(rate(grpc_server_seconds_count[1m])) by (rpc_method)", "legendFormat": "{{rpc_method}}" }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "gRPC p99 latency by method",
+      "type": "timeseries",
+      "gridPos": { "x": 12, "y": 0, "w": 12, "h": 8 },
+      "targets": [
+        { "expr": "histogram_quantile(0.99, sum(rate(grpc_server_seconds_bucket[5m])) by (le, rpc_method))", "legendFormat": "{{rpc_method}}" }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "gRPC error rate",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 8, "w": 12, "h": 8 },
+      "targets": [
+        { "expr": "sum(rate(grpc_server_seconds_count{grpc_status_code!=\"OK\"}[5m])) by (grpc_status_code)", "legendFormat": "{{grpc_status_code}}" }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Outbox backlog (unpublished events)",
+      "type": "timeseries",
+      "gridPos": { "x": 12, "y": 8, "w": 12, "h": 8 },
+      "targets": [
+        { "expr": "outbox_events_unpublished", "legendFormat": "unpublished" }
+      ]
+    }
+  ]
+}

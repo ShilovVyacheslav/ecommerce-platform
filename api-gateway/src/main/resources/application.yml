@@ -82,6 +82,34 @@ spring:
                     redis-rate-limiter.burstCapacity: 40
                     redis-rate-limiter.requestedTokens: 1
                     key-resolver: "#{@rateLimiterKeyResolver}"
+
+            - id: user-service-docs
+              uri: ${USER_SERVICE_URI:lb://user-service}
+              predicates:
+                - Path=/user-service/v3/api-docs
+              filters:
+                - RewritePath=/user-service/(?<remainder>.*), /${remainder}
+
+            - id: order-service-docs
+              uri: ${ORDER_SERVICE_URI:lb://order-service}
+              predicates:
+                - Path=/order-service/v3/api-docs
+              filters:
+                - RewritePath=/order-service/(?<remainder>.*), /${remainder}
+
+            - id: product-service-docs
+              uri: ${PRODUCT_SERVICE_URI:lb://product-service}
+              predicates:
+                - Path=/product-service/v3/api-docs/public
+              filters:
+                - RewritePath=/product-service/(?<remainder>.*), /${remainder}
+
+            - id: payment-service-docs
+              uri: ${PAYMENT_SERVICE_URI:lb://payment-service}
+              predicates:
+                - Path=/payment-service/v3/api-docs/public
+              filters:
+                - RewritePath=/payment-service/(?<remainder>.*), /${remainder}
   security:
     oauth2:
       resourceserver:
@@ -100,4 +128,20 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: health,info,prometheus
+  metrics:
+    tags:
+      application: ${spring.application.name}
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    urls:
+      - name: User Service
+        url: /user-service/v3/api-docs
+      - name: Order Service
+        url: /order-service/v3/api-docs
+      - name: Product Service (public)
+        url: /product-service/v3/api-docs/public
+      - name: Payment Service (public)
+        url: /payment-service/v3/api-docs/public

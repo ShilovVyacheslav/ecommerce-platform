@@ -1,0 +1,34 @@
+groups:
+  - name: ecommerce-platform
+    rules:
+      - alert: ServiceDown
+        expr: up{job="spring-boot-services"} == 0
+        for: 1m
+        labels: { severity: critical }
+        annotations:
+          summary: "{{ $labels.service }} is down"
+          description: "Prometheus can't scrape {{ $labels.service }} for 1 minute."
+
+      - alert: OutboxBacklogGrowing
+        expr: increase(outbox_events_unpublished[10m]) > 0 and outbox_events_unpublished > 20
+        for: 5m
+        labels: { severity: warning }
+        annotations:
+          summary: "Outbox backlog is growing on order-service"
+          description: "Unpublished outbox rows have been increasing for 5m - likely a poison event or Kafka being unreachable."
+
+      - alert: GrpcHighErrorRate
+        expr: |
+          sum(rate(grpc_server_seconds_count{grpc_status_code!="OK"}[5m]))
+            / sum(rate(grpc_server_seconds_count[5m])) > 0.05
+        for: 5m
+        labels: { severity: warning }
+        annotations:
+          summary: "gRPC error rate above 5% on product-service"
+
+      - alert: JvmHeapNearLimit
+        expr: sum(jvm_memory_used_bytes{area="heap"}) by (application) / sum(jvm_memory_max_bytes{area="heap"}) by (application) > 0.9
+        for: 5m
+        labels: { severity: warning }
+        annotations:
+          summary: "{{ $labels.application }} heap usage above 90%"

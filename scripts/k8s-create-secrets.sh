@@ -33,6 +33,9 @@ create_or_update mongo-credentials \
   --from-literal=MONGO_ROOT_USER=root \
   --from-literal=MONGO_ROOT_PASSWORD="$(openssl rand -hex 16)"
 
+create_or_update grafana-credentials \
+  --from-literal=GRAFANA_ADMIN_PASSWORD="$(openssl rand -hex 16)"
+
 if ! kubectl get secret mongo-keyfile -n "$NAMESPACE" &>/dev/null; then
   TMP_KEYFILE=$(mktemp)
   openssl rand -base64 756 > "$TMP_KEYFILE"

@@ -20,4 +20,6 @@ public interface OutboxEventRepository extends JpaRepository<OutboxEvent, UUID> 
             FOR UPDATE SKIP LOCKED
             """, nativeQuery = true)
     List<OutboxEvent> findUnpublishedBatch(@Param("batchSize") int batchSize);
+
+    long countByPublishedAtIsNull();
 }
