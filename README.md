@@ -76,7 +76,7 @@ docker compose --env-file .env.docker up --build -d
 **If that struggles** — Docker Desktop can choke trying to build six JVM images and start 10+ containers all at once, especially on constrained CPU/network. Bring the stack up in stages instead:
 
 ```bash
-# 1. Infrastructure first — everything else depends on these being healthy
+# 1. Infrastructure first
 docker compose --env-file .env.docker up -d postgres-user \
   postgres-payment postgres-order mongo-product redis kafka discovery-server
 
@@ -88,7 +88,7 @@ docker compose --env-file .env.docker build order-service
 docker compose --env-file .env.docker build api-gateway
 docker compose --env-file .env.docker build notification-service
 
-# 3. Start services in dependency order — user-service first
+# 3. Start services in dependency order
 docker compose --env-file .env.docker up -d user-service
 docker compose --env-file .env.docker up -d payment-service
 docker compose --env-file .env.docker up -d product-service
@@ -391,18 +391,5 @@ minikube service api-gateway -n ecommerce --url
 That URL is a direct route to `api-gateway`, equivalent to `http://localhost:8080` in the other two options.
 
 </details>
-
----
-
-## | Architecture
-
-| Service | Port | Responsibility |
-| :--- | :--- | :--- |
-| **discovery-server** | `8761` | Eureka service registry |
-| **api-gateway** | `8080` | Single entry point, request routing (`lb://`), JWT validation at the edge, Redis-backed rate limiting |
-| **user-service** | `8081` | Auth (register/login/refresh), user management, JWT issuing via RSA + JWKS |
-| **payment-service** | `8082` | Payment processing |
-| **product-service** | `8083` | Product catalog |
-| **order-service** | `8084` | Order management |
 
 ---

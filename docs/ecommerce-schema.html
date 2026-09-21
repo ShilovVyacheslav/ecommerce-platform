@@ -232,10 +232,10 @@
             cont: {
                 n: 'product-service',
                 i: '\u2026-product-service:latest',
-                p: 8083,
+                p: '8083 / 9083 grpc',
                 r: 'req 256Mi/100m \u00b7 lim 512Mi/500m'
             },
-            extra: ['atomic $inc stock \u2014 no oversell, no txn', 'INTERNAL_API_KEY guards /internal/**']
+            extra: ['atomic $inc stock \u2014 no oversell, no txn', 'INTERNAL_API_KEY guards /internal/** + all gRPC', '+ Svc/product-service-grpc \u00b7 Headless :9083 \u2192 same pod']
         },
 
         {
@@ -349,7 +349,7 @@
             w: 2360,
             h: 1570,
             l: 'Namespace: ecommerce',
-            s: 'one name scope \u00b7 18 objects \u00b7 no NetworkPolicy between them',
+            s: 'one name scope \u00b7 19 objects \u00b7 no NetworkPolicy between them',
             c: C.red
         },
         {
@@ -492,7 +492,7 @@
             c: 'sync',
             pts: [[1300, 780], [1300, 852], [640, 852], [640, 521], [665, 521]],
             lp: [1000, 852],
-            l: 'http://product-service:8083 \u00b7 reserve / confirm / release'
+            l: 'gRPC :9083 \u00b7 getProduct / reserve / confirm / release'
         },
         {
             f: 'order-service',
