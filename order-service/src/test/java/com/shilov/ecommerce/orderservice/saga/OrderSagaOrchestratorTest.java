@@ -39,8 +39,8 @@ import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.assertj.core.api.Assertions.in;
 import static org.assertj.core.api.Assertions.tuple;
+import static org.junit.jupiter.api.Named.named;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
@@ -53,7 +53,6 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
-import static wiremock.org.eclipse.jetty.util.component.Dumpable.named;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("OrderSagaOrchestrator")
@@ -413,6 +412,7 @@ public class OrderSagaOrchestratorTest {
             inOrder.verify(orderRepository).save(order);
             inOrder.verify(productServiceClient).confirm(order.getId().toString());
             inOrder.verify(paymentServiceClient).refund(order.getId());
+            inOrder.verify(productServiceClient).release(order.getId().toString());
             inOrder.verify(outboxService).saveAndPublish(order, OutboxEventType.ORDER_CANCELLED);
             verifyNoMoreCalls();
         }
@@ -555,7 +555,7 @@ public class OrderSagaOrchestratorTest {
             inOrder.verify(orderRepository).save(order);
             inOrder.verify(paymentServiceClient).charge(order.getId(), TestOrders.TOTAL, TestOrders.CURRENCY);
             inOrder.verify(productServiceClient).release(order.getId().toString());
-            inOrder.verify(outboxService).saveAndPublish(order, TestOrders.ORDER_CANCELLED);
+            inOrder.verify(outboxService).saveAndPublish(order, OutboxEventType.ORDER_CANCELLED);
             verifyNoMoreCalls();
         }
 
