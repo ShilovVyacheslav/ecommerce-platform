@@ -1,12 +1,16 @@
 package com.shilov.ecommerce.orderservice.client;
 
 import com.shilov.ecommerce.config.props.InternalApiProperties;
+import com.shilov.ecommerce.dto.ErrorDto;
+import com.shilov.ecommerce.enums.ServiceName;
 import com.shilov.ecommerce.orderservice.dto.ChargeRequestDto;
 import com.shilov.ecommerce.orderservice.dto.client.PaymentResponseDto;
 import com.shilov.ecommerce.orderservice.exception.SagaStepException;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 
@@ -16,9 +20,12 @@ import java.util.UUID;
 import static com.shilov.ecommerce.constants.Constants.INTERNAL_API_KEY_HEADER;
 import static com.shilov.ecommerce.constants.Constants.INTERNAL_VERSION_V1;
 
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class PaymentServiceClient {
+
+    private static final int PAYMENT_NOT_FOUND_CODE = 2001;
 
     private final RestClient paymentServiceRestClient;
     private final InternalApiProperties internalApiProperties;
@@ -50,9 +57,26 @@ public class PaymentServiceClient {
                     .header(INTERNAL_API_KEY_HEADER, internalApiProperties.getApiKey())
                     .retrieve()
                     .toBodilessEntity();
+        } catch (HttpClientErrorException.NotFound ex) {
+            if (!isPaymentNotFound(ex)) {
+                throw SagaStepException.refundFailed(ex);
+            }
+            log.info("No payment exists for order {} - the charge never landed, nothing to refund", orderId);
         } catch (RestClientException ex) {
             throw SagaStepException.refundFailed(ex);
         }
+    }
+
+    private static boolean isPaymentNotFound(HttpClientErrorException.NotFound ex) {
+        ErrorDto errorDto;
+        try {
+            errorDto = ex.getResponseBodyAs(ErrorDto.class);
+        } catch (RuntimeException unreadableBody) {
+            return false;
+        }
+        return errorDto != null
+                && errorDto.serviceName() == ServiceName.PAYMENT_SERVICE
+                && Integer.valueOf(PAYMENT_NOT_FOUND_CODE).equals(errorDto.code());
     }
 
 }

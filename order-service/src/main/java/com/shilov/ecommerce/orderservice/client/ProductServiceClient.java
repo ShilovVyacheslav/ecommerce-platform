@@ -62,6 +62,9 @@ public class ProductServiceClient {
         try {
             productServiceBlockingStub.releaseReservation(orderReference(orderId));
         } catch (StatusRuntimeException ex) {
+            if (ex.getStatus().getCode() == Status.Code.NOT_FOUND) {
+                return;
+            }
             throw SagaStepException.stockReleaseFailed(ex);
         }
     }
