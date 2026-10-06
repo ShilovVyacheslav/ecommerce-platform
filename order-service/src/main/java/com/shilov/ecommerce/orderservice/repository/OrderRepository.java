@@ -3,6 +3,7 @@ package com.shilov.ecommerce.orderservice.repository;
 import com.shilov.ecommerce.orderservice.entity.Order;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -11,6 +12,10 @@ import java.util.UUID;
 
 @Repository
 public interface OrderRepository extends JpaRepository<Order, UUID> {
+
+    @Override
+    @EntityGraph(attributePaths = "items")
+    Optional<Order> findById(UUID id);
 
     Optional<Order> findByIdAndUserId(UUID id, Long userId);
 
