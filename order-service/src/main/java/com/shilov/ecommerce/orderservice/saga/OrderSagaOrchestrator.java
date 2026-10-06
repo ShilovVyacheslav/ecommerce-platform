@@ -16,11 +16,18 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
+import java.util.Objects;
+
+import static com.shilov.ecommerce.orderservice.enums.ErrorCode.INSUFFICIENT_STOCK_ERROR;
+import static com.shilov.ecommerce.orderservice.enums.ErrorCode.PRODUCT_NOT_FOUND_ERROR;
 
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class OrderSagaOrchestrator {
+
+    private static final int FAILURE_REASON_MAX_LENGTH = 500;
+    private static final String MANUAL_REVIEW_PREFIX = "Automatic compensation failed - requires manual review: ";
 
     private final OrderRepository orderRepository;
     private final OutboxService outboxService;
@@ -28,8 +35,8 @@ public class OrderSagaOrchestrator {
     private final PaymentServiceClient paymentServiceClient;
 
     public Order process(Order order) {
-        log.info("Saga started for order {} (total: {} {})",
-                order.getId(), order.getTotalAmount(), order.getCurrency());
+        log.info("Saga started for order {} (status: {}, total: {} {})",
+                order.getId(), order.getStatus(), order.getTotalAmount(), order.getCurrency());
 
         order = reserveStock(order);
         if (order.getStatus() == OrderStatus.CANCELLED) {
@@ -64,86 +71,122 @@ public class OrderSagaOrchestrator {
         log.info("Reserving stock for order {} ({} item(s))", order.getId(), items.size());
         try {
             productServiceClient.reserve(order.getId().toString(), items);
-            order.setStatus(OrderStatus.STOCK_RESERVED);
-            log.info("Stock reserved for order {}", order.getId());
-            return orderRepository.save(order);
         } catch (SagaStepException ex) {
             log.warn("Stock reservation failed for order {}: {}", order.getId(), ex.getMessage());
-            order.setStatus(OrderStatus.CANCELLED);
-            order.setFailureReason("Stock reservation failed: " + ex.getMessage());
-            return outboxService.saveAndPublish(order, OutboxEventType.ORDER_CANCELLED);
+            String reason = "Stock reservation failed: " + ex.getMessage();
+            if (isBusinessRejection(ex)) {
+                return cancel(order, reason, true);
+            }
+            return cancel(order, reason, releaseStockQuietly(order));
         }
+
+        order.setStatus(OrderStatus.STOCK_RESERVED);
+        log.info("Stock reserved for order {}", order.getId());
+        return orderRepository.save(order);
     }
 
     private Order chargePayment(Order order) {
-        if (order.getStatus() == OrderStatus.PAID || order.getStatus() == OrderStatus.CONFIRMED) {
-            return order;
-        }
         if (order.getStatus() != OrderStatus.STOCK_RESERVED) {
             return order;
         }
 
         log.info("Charging payment for order {}", order.getId());
-        PaymentResponseDto paymentResponseDto;
+        PaymentResponseDto payment;
         try {
-            paymentResponseDto = paymentServiceClient
-                    .charge(order.getId(), order.getTotalAmount(), order.getCurrency());
+            payment = paymentServiceClient.charge(order.getId(), order.getTotalAmount(), order.getCurrency());
         } catch (SagaStepException ex) {
-            log.error("Payment service call failed for order {}: {}", order.getId(), ex.getMessage());
-            log.info("Compensating: releasing stock for order {}", order.getId());
-            productServiceClient.release(order.getId().toString());
-            order.setStatus(OrderStatus.CANCELLED);
-            order.setFailureReason("Payment service unavailable");
-            return outboxService.saveAndPublish(order, OutboxEventType.ORDER_CANCELLED);
+            log.error("Payment call failed for order {} - outcome unknown: {}", order.getId(), ex.getMessage());
+            return compensateUnknownChargeOutcome(order, "Payment service unavailable");
         }
 
-        if (paymentResponseDto.getStatus() == PaymentStatus.COMPLETED) {
+        if (payment == null || payment.getStatus() == null) {
+            log.error("Payment service returned no payment status for order {} - outcome unknown", order.getId());
+            return compensateUnknownChargeOutcome(order, "Payment service returned an invalid response");
+        }
+
+        if (payment.getStatus() == PaymentStatus.COMPLETED) {
             order.setStatus(OrderStatus.PAID);
             log.info("Payment completed for order {}", order.getId());
             return orderRepository.save(order);
         }
 
-        log.warn("Payment declined for order {}: {}", order.getId(), paymentResponseDto.getFailureReason());
-        log.info("Compensating: releasing stock for order {}", order.getId());
-        productServiceClient.release(order.getId().toString());
-        order.setStatus(OrderStatus.CANCELLED);
-        order.setFailureReason("Payment declined: " + paymentResponseDto.getFailureReason());
-        return outboxService.saveAndPublish(order, OutboxEventType.ORDER_CANCELLED);
+        String declineReason = Objects.requireNonNullElse(payment.getFailureReason(), "unknown");
+        log.warn("Payment declined for order {}: {}", order.getId(), declineReason);
+        return cancel(order, "Payment declined: " + declineReason, releaseStockQuietly(order));
     }
 
     private Order confirmStock(Order order) {
-        if (order.getStatus() == OrderStatus.CONFIRMED) {
+        if (order.getStatus() != OrderStatus.PAID) {
             return order;
         }
         try {
             productServiceClient.confirm(order.getId().toString());
-            order.setStatus(OrderStatus.CONFIRMED);
-            log.info("Stock confirmed for order {}", order.getId());
         } catch (SagaStepException ex) {
             log.error("Stock confirmation failed for order {} after successful payment - compensating: {}",
                     order.getId(), ex.getMessage());
-            compensateAfterConfirmationFailure(order, ex);
+
+            boolean refunded = refundQuietly(order);
+            boolean released = releaseStockQuietly(order);
+            boolean compensated = refunded && released;
+
+            String reason = compensated
+                    ? "Payment refunded after stock confirmation failure: " + ex.getMessage()
+                    : "Stock confirmation failed: " + ex.getMessage();
+
+            return cancel(order, reason, compensated);
         }
 
-        OutboxEventType outboxEventType = order.getStatus() == OrderStatus.CONFIRMED
-                ? OutboxEventType.ORDER_CONFIRMED
-                : OutboxEventType.ORDER_CANCELLED;
-        return outboxService.saveAndPublish(order, outboxEventType);
+        order.setStatus(OrderStatus.CONFIRMED);
+        log.info("Stock confirmed for order {}", order.getId());
+        return outboxService.saveAndPublish(order, OutboxEventType.ORDER_CONFIRMED);
     }
 
-    private void compensateAfterConfirmationFailure(Order order, SagaStepException originalEx) {
-        try {
-            paymentServiceClient.refund(order.getId());
-            productServiceClient.release(order.getId().toString());
-            order.setStatus(OrderStatus.CANCELLED);
-            order.setFailureReason("Payment refunded after stock confirmation failure: " + originalEx.getMessage());
-        } catch (SagaStepException compensationEx) {
-            log.error("Compensation failed for order {} - refund/release did not complete. Manual intervention required.",
-                    order.getId(), compensationEx);
+    private Order cancel(Order order, String reason, boolean compensationSucceeded) {
+        String fullReason = compensationSucceeded ? reason : MANUAL_REVIEW_PREFIX + reason;
+        order.setStatus(OrderStatus.CANCELLED);
+        order.setFailureReason(truncate(fullReason));
+        return outboxService.saveAndPublish(order, OutboxEventType.ORDER_CANCELLED);
+    }
 
-            order.setStatus(OrderStatus.CANCELLED);
-            order.setFailureReason("Automatic compensation failed - requires manual review: "
-                    + compensationEx.getMessage());
+    private boolean releaseStockQuietly(Order order) {
+        try {
+            log.info("Compensating: releasing stock for order {}", order.getId());
+            productServiceClient.release(order.getId().toString());
+            return true;
+        } catch (RuntimeException ex) {
+            log.error("COMPENSATION FAILED: stock release for order {} - manual intervention required",
+                    order.getId(), ex);
+            return false;
         }
+    }
+
+    private Order compensateUnknownChargeOutcome(Order order, String reason) {
+        boolean refunded = refundQuietly(order);
+        boolean released = releaseStockQuietly(order);
+        return cancel(order, reason, refunded && released);
+    }
+
+    private boolean refundQuietly(Order order) {
+        try {
+            log.info("Compensating: refunding payment for order {}", order.getId());
+            paymentServiceClient.refund(order.getId());
+            return true;
+        } catch (RuntimeException ex) {
+            log.error("COMPENSATION FAILED: refund for order {} - manual intervention required",
+                    order.getId(), ex);
+            return false;
+        }
+    }
+
+    private static boolean isBusinessRejection(SagaStepException ex) {
+        return ex.getCode() == INSUFFICIENT_STOCK_ERROR.getCode() ||
+               ex.getCode() == PRODUCT_NOT_FOUND_ERROR.getCode();
+    }
+
+    private static String truncate(String reason) {
+        if (reason.length() <= FAILURE_REASON_MAX_LENGTH) {
+            return reason;
+        }
+        return reason.substring(0, FAILURE_REASON_MAX_LENGTH - 3) + "...";
     }
 }
