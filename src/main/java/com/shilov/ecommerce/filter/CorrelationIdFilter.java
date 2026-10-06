@@ -34,7 +34,7 @@ public class CorrelationIdFilter extends OncePerRequestFilter implements Ordered
             correlationId = UUID.randomUUID().toString();
         }
         try {
-            MDC.put(CORRELATION_ID_HEADER, correlationId);
+            MDC.put(CORRELATION_ID_MDC_KEY, correlationId);
             filterChain.doFilter(request, response);
         } finally {
             MDC.remove(CORRELATION_ID_MDC_KEY);
