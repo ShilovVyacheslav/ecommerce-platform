@@ -45,7 +45,7 @@ jobs:
         uses: mikepenz/action-junit-report@v4
         if: always()
         with:
-          report_paths: '**/build/test-results/test/TEST-*.xml'
+          report_paths: '**/build/test-results/**/TEST-*.xml'
           require_tests: false
 
       - name: Upload test reports on failure
@@ -83,7 +83,7 @@ jobs:
         run: chmod +x gradlew
 
       - name: Build for CodeQL
-        run: ./gradlew build -x test --no-daemon
+        run: ./gradlew assemble --no-daemon
 
       - name: Perform CodeQL analysis
         uses: github/codeql-action/analyze@v3

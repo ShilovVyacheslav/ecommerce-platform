@@ -57,6 +57,13 @@ dependencies {
 
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("org.springframework.security:spring-security-test")
+    testImplementation("org.springframework.boot:spring-boot-testcontainers")
+    testImplementation("org.testcontainers:junit-jupiter")
+    testImplementation("org.testcontainers:postgresql")
+    testImplementation("org.wiremock:wiremock-standalone:3.13.1")
+    testImplementation("io.grpc:grpc-inprocess")
+    testImplementation("org.awaitility:awaitility")
+
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
     testRuntimeOnly("com.h2database:h2")
 }
@@ -70,6 +77,23 @@ dependencyManagement {
 
 tasks.withType<Test> {
     useJUnitPlatform()
+}
+
+tasks.named<Test>("test") {
+    useJUnitPlatform { excludeTags("integration") }
+}
+
+val integrationTest by tasks.registering(Test::class) {
+    description = "Runs integration tests (requires Docker)."
+    group = LifecycleBasePlugin.VERIFICATION_GROUP
+    testClassesDirs = sourceSets.test.get().output.classesDirs
+    classpath = sourceSets.test.get().runtimeClasspath
+    useJUnitPlatform { includeTags("integration") }
+    shouldRunAfter(tasks.named("test"))
+}
+
+tasks.named("check") {
+    dependsOn(integrationTest)
 }
 
 tasks.named<Jar>("jar") {
