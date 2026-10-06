@@ -51,7 +51,7 @@ public class Order {
     @Column(nullable = false, length = 3)
     private String currency;
 
-    @Column(name = "failure_reason")
+    @Column(name = "failure_reason", length = 500)
     private String failureReason;
 
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
