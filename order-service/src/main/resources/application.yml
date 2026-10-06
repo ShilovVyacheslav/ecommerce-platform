@@ -74,3 +74,8 @@ springdoc:
 app:
   internal:
     api-key: ${INTERNAL_API_KEY}
+  http:
+    clients:
+      payment-service:
+        connect-timeout: 2s
+        read-timeout: 5s

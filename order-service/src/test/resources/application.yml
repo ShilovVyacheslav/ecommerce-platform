@@ -24,3 +24,10 @@ eureka:
 messaging:
   kafka:
     enabled: false
+
+app:
+  http:
+    clients:
+      payment-service:
+        connect-timeout: 2s
+        read-timeout: 5s
