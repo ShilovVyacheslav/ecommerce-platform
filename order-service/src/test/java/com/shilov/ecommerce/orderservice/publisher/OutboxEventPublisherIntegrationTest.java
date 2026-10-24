@@ -47,7 +47,7 @@ public class OutboxEventPublisherIntegrationTest extends AbstractIntegrationTest
     private static final Duration DELIVERY_TIMEOUT = Duration.ofSeconds(20);
     private static final Duration MORE_THAN_ONE_POLLING_CYCLE = Duration.ofSeconds(5);
 
-    private static final KafkaContainer KAFKA = new KafkaContainer("apache/kafka:3.9.0");
+    private static final KafkaContainer KAFKA = new KafkaContainer("apache/kafka-native:3.8.0");
 
     static {
         KAFKA.start();
