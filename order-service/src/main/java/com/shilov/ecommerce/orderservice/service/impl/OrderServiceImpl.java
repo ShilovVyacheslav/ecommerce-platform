@@ -27,7 +27,7 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
@@ -39,7 +39,7 @@ public class OrderServiceImpl implements OrderService {
     private final OrderMapper orderMapper;
     private final ProductServiceClient productServiceClient;
     private final OrderSagaOrchestrator orderSagaOrchestrator;
-    private final ExecutorService productLookupExecutor;
+    private final Executor productLookupExecutor;
 
     private static final long PRODUCT_LOOKUP_TIMEOUT_SECONDS = 10;
 

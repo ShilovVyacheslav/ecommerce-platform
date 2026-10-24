@@ -642,8 +642,6 @@ public class OrderSagaIntegrationTest extends AbstractIntegrationTest {
     @DisplayName("Internal authentication and tracing across services")
     class CrossServiceHeaders {
 
-        private static final List<String> SAGA_RPCS = List.of("ReserveStock", "ConfirmReservation", "ReleaseReservation");
-
         @BeforeEach
         void sagaTouchesEveryEndpoint() throws Exception {
             stubCharge(PaymentStatus.COMPLETED, null);
@@ -669,8 +667,8 @@ public class OrderSagaIntegrationTest extends AbstractIntegrationTest {
         }
 
         @Test
-        @DisplayName("Incoming X-Correlation-Id is propagated to every saga step and compensation")
-        void createOrder_WithCorrelationId_PropagatesItToEverySagaCall() throws Exception {
+        @DisplayName("Incoming X-Correlation-Id -> propagated to parallel product lookups, every saga step and compensation")
+        void createOrder_WithCorrelationId_PropagatesItToEveryOutboundCall() throws Exception {
             String correlationId = UUID.randomUUID().toString();
 
             placeOrder(request -> request.header(CORRELATION_ID_HEADER, correlationId));
@@ -678,10 +676,14 @@ public class OrderSagaIntegrationTest extends AbstractIntegrationTest {
             PAYMENT_SERVICE.verify(2, postRequestedFor(urlMatching(PAYMENTS_PATH + ".*"))
                     .withHeader(CORRELATION_ID_HEADER, equalTo(correlationId)));
             assertThat(PRODUCT_SERVICE.receivedCalls())
-                    .filteredOn(receivedCall -> SAGA_RPCS.contains(receivedCall.method()))
-                    .hasSize(3)
-                    .extracting(ReceivedCall::correlationId)
-                    .containsOnly(correlationId);
+                    .extracting(ReceivedCall::method, ReceivedCall::correlationId)
+                    .containsExactlyInAnyOrder(
+                            tuple("GetProduct", correlationId),
+                            tuple("GetProduct", correlationId),
+                            tuple("GetProduct", correlationId),
+                            tuple("ReserveStock", correlationId),
+                            tuple("ConfirmReservation", correlationId),
+                            tuple("ReleaseReservation", correlationId));
         }
 
     }
