@@ -32,3 +32,11 @@ groups:
         labels: { severity: warning }
         annotations:
           summary: "{{ $labels.application }} heap usage above 90%"
+
+      - alert: ErrorLogsSpike
+        expr: sum by (application) (increase(logback_events_total{level="error"}[5m])) > 10
+        for: 5m
+        labels: { severity: warning }
+        annotations:
+          summary: "{{ $labels.application }} logs more than 10 errors per 5 minutes"
+          description: "Grafana > ecommerce-platform · Logs, service={{ $labels.application }}, level=ERROR. The 'Top errors' table groups them by errorHash."

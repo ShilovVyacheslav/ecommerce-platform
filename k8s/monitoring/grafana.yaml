@@ -8,10 +8,24 @@ data:
     apiVersion: 1
     datasources:
       - name: Prometheus
+        uid: prometheus
         type: prometheus
         access: proxy
         url: http://prometheus:9090
         isDefault: true
+      - name: Loki
+        uid: loki
+        type: loki
+        access: proxy
+        url: http://loki:3100
+        jsonData:
+          maxLines: 1000
+          derivedFields:
+            - name: correlationId
+              matcherRegex: '"correlationId":"([A-Za-z0-9._:-]+)"'
+              datasourceUid: loki
+              url: '{env=~".+"} | json | correlationId="$${__value.raw}"'
+              urlDisplayLabel: All logs of this request
 ---
 apiVersion: v1
 kind: Service

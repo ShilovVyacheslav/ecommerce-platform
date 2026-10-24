@@ -4,4 +4,4 @@ providers:
     folder: ecommerce-platform
     type: file
     options:
-      path: /var/lib/grafana/dashboards
+      path: /etc/grafana/provisioning/dashboards

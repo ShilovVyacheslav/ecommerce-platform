@@ -1,0 +1,58 @@
+data_dir: /var/lib/vector
+
+sources:
+  docker:
+    type: docker_logs
+    include_labels:
+      - "com.docker.compose.project=ecommerce-platform"
+    exclude_containers:
+      - ecommerce-platform-vector-agent
+      - ecommerce-platform-vector-aggregator
+      - ecommerce-platform-loki
+
+transforms:
+  normalize:
+    type: remap
+    inputs: [docker]
+    source: |
+      structured, err = parse_json(.message)
+      if err == null && is_object(structured) {
+        . = merge(., object!(structured))
+      }
+
+      if !exists(.service) {
+        .service = string(.label."com.docker.compose.service") ?? "unknown"
+      }
+      if !exists(.level) {
+        .level = "UNKNOWN"
+      }
+      if !exists(.env) {
+        .env = get_env_var("LOG_ENVIRONMENT") ?? "unknown"
+      }
+      .container = .container_name
+
+      del(.label)
+      del(.container_id)
+      del(.container_created_at)
+      del(.container_name)
+      del(.image)
+      del(.source_type)
+      del(.stream)
+
+sinks:
+  kafka:
+    type: kafka
+    inputs: [normalize]
+    bootstrap_servers: kafka:9092
+    topic: platform-logs
+    key_field: service
+    compression: lz4
+    encoding:
+      codec: json
+    buffer:
+      type: disk
+      max_size: 268435488
+      when_full: block
+    librdkafka_options:
+      linger.ms: "100"
+      batch.num.messages: "1000"

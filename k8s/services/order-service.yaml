@@ -31,6 +31,8 @@ spec:
           ports:
             - containerPort: 8084
           env:
+            - name: APP_ENVIRONMENT
+              value: k8s
             - name: SERVER_PORT
               value: "8084"
             - name: EUREKA_CLIENT_ENABLED

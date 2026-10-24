@@ -1,0 +1,64 @@
+tests:
+  - name: JSON line of a service is lifted to top-level fields, docker noise is dropped
+    inputs:
+      - insert_at: normalize
+        type: log
+        log_fields:
+          message: '{"@timestamp":"2026-10-24T10:15:30.123Z","level":"INFO","service":"order-service","env":"docker","logger":"c.s.e.o.saga.OrderSagaOrchestrator","message":"Saga started","correlationId":"corr-1","orderId":"42"}'
+          container_name: ecommerce-platform-order-service-1
+          container_id: 0123456789ab
+          image: ecommerce-platform-order-service
+          stream: stdout
+          source_type: docker_logs
+          'label."com.docker.compose.service"': order-service
+    outputs:
+      - extract_from: normalize
+        conditions:
+          - type: vrl
+            source: |
+              assert_eq!(.service, "order-service")
+              assert_eq!(.level, "INFO")
+              assert_eq!(.env, "docker")
+              assert_eq!(.message, "Saga started")
+              assert_eq!(.correlationId, "corr-1")
+              assert_eq!(.orderId, "42")
+              assert_eq!(.container, "ecommerce-platform-order-service-1")
+              assert!(!exists(.label))
+              assert!(!exists(.image))
+              assert!(!exists(.container_id))
+
+  - name: Plain-text line of a third-party container keeps the message and gets label defaults
+    inputs:
+      - insert_at: normalize
+        type: log
+        log_fields:
+          message: "[2026-10-24 10:15:30,123] INFO [KafkaServer id=1] started (kafka.server.KafkaServer)"
+          container_name: ecommerce-platform-kafka-1
+          stream: stdout
+          source_type: docker_logs
+          'label."com.docker.compose.service"': kafka
+    outputs:
+      - extract_from: normalize
+        conditions:
+          - type: vrl
+            source: |
+              assert_eq!(.service, "kafka")
+              assert_eq!(.level, "UNKNOWN")
+              assert!(exists(.env))
+              assert!(starts_with(string!(.message), "[2026-10-24 10:15:30,123] INFO"))
+
+  - name: Line that is valid JSON but not an object is kept as text
+    inputs:
+      - insert_at: normalize
+        type: log
+        log_fields:
+          message: '"just a string"'
+          container_name: ecommerce-platform-redis-1
+          'label."com.docker.compose.service"': redis
+    outputs:
+      - extract_from: normalize
+        conditions:
+          - type: vrl
+            source: |
+              assert_eq!(.message, "\"just a string\"")
+              assert_eq!(.service, "redis")

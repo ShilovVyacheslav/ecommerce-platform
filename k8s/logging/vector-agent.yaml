@@ -1,0 +1,136 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: vector-agent
+  namespace: ecommerce
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: vector-agent
+rules:
+  - apiGroups: [ "" ]
+    resources: [ "pods", "namespaces", "nodes" ]
+    verbs: [ "get", "list", "watch" ]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: vector-agent
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: vector-agent
+subjects:
+  - kind: ServiceAccount
+    name: vector-agent
+    namespace: ecommerce
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: vector-agent-config
+  namespace: ecommerce
+data:
+  vector.yaml: |
+    data_dir: /vector-data-dir
+
+    sources:
+      pods:
+        type: kubernetes_logs
+        extra_field_selector: "metadata.namespace=ecommerce"
+        extra_label_selector: "app notin (vector-agent,vector-aggregator,loki)"
+
+    transforms:
+      normalize:
+        type: remap
+        inputs: [ pods ]
+        source: |
+          structured, err = parse_json(.message)
+          if err == null && is_object(structured) {
+            . = merge(., object!(structured))
+          }
+
+          if !exists(.service) {
+            .service = string(.kubernetes.pod_labels.app) ?? string(.kubernetes.container_name) ?? "unknown"
+          }
+          if !exists(.level) {
+            .level = "UNKNOWN"
+          }
+          if !exists(.env) {
+            .env = "k8s"
+          }
+          .pod = .kubernetes.pod_name
+          .node = .kubernetes.pod_node_name
+
+          del(.kubernetes)
+          del(.file)
+          del(.source_type)
+          del(.stream)
+
+    sinks:
+      kafka:
+        type: kafka
+        inputs: [ normalize ]
+        bootstrap_servers: kafka:9092
+        topic: platform-logs
+        key_field: service
+        compression: lz4
+        encoding:
+          codec: json
+        buffer:
+          type: disk
+          max_size: 268435488
+          when_full: block
+        librdkafka_options:
+          linger.ms: "100"
+          batch.num.messages: "1000"
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: vector-agent
+  namespace: ecommerce
+spec:
+  selector:
+    matchLabels: { app: vector-agent }
+  template:
+    metadata:
+      labels: { app: vector-agent }
+    spec:
+      serviceAccountName: vector-agent
+      containers:
+        - name: vector
+          image: timberio/vector:0.47.0-alpine
+          args: [ "--config-dir", "/etc/vector/" ]
+          env:
+            - name: VECTOR_SELF_NODE_NAME
+              valueFrom: { fieldRef: { fieldPath: spec.nodeName } }
+            - name: VECTOR_SELF_POD_NAME
+              valueFrom: { fieldRef: { fieldPath: metadata.name } }
+            - name: VECTOR_SELF_POD_NAMESPACE
+              valueFrom: { fieldRef: { fieldPath: metadata.namespace } }
+          resources:
+            requests: { memory: "64Mi", cpu: "50m" }
+            limits: { memory: "256Mi", cpu: "250m" }
+          volumeMounts:
+            - name: config
+              mountPath: /etc/vector
+              readOnly: true
+            - name: data
+              mountPath: /vector-data-dir
+            - name: var-log
+              mountPath: /var/log
+              readOnly: true
+            - name: var-lib
+              mountPath: /var/lib
+              readOnly: true
+      volumes:
+        - name: config
+          configMap: { name: vector-agent-config }
+        - name: data
+          hostPath: { path: /var/lib/vector-agent, type: DirectoryOrCreate }
+        - name: var-log
+          hostPath: { path: /var/log }
+        - name: var-lib
+          hostPath: { path: /var/lib }

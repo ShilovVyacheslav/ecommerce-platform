@@ -46,6 +46,8 @@ spec:
             - containerPort: 9083
               name: grpc
           env:
+            - name: APP_ENVIRONMENT
+              value: k8s
             - name: SERVER_PORT
               value: "8083"
             - name: GRPC_SERVER_PORT

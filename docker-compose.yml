@@ -2,6 +2,13 @@ name: ecommerce-platform
 
 x-common-env: &common-env
   EUREKA_URL: ${EUREKA_URL}
+  APP_ENVIRONMENT: docker
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
 
 services:
   discovery-server:
@@ -12,9 +19,11 @@ services:
         SERVER_PORT: ${DISCOVERY_SERVER_PORT:?DISCOVERY_SERVER_PORT is not set}
     environment:
       SERVER_PORT: ${DISCOVERY_SERVER_PORT}
+      APP_ENVIRONMENT: docker
     ports:
       - "${DISCOVERY_SERVER_PORT}:${DISCOVERY_SERVER_PORT}"
     mem_limit: 384m
+    logging: *default-logging
 
   postgres-user:
     image: postgres:17-alpine
@@ -32,6 +41,7 @@ services:
       timeout: 5s
       retries: 10
     mem_limit: 256m
+    logging: *default-logging
 
   postgres-payment:
     image: postgres:17-alpine
@@ -49,6 +59,7 @@ services:
       timeout: 5s
       retries: 10
     mem_limit: 256m
+    logging: *default-logging
 
   postgres-order:
     image: postgres:17-alpine
@@ -66,6 +77,7 @@ services:
       timeout: 5s
       retries: 10
     mem_limit: 256m
+    logging: *default-logging
 
   mongo-product:
     image: mongo:4.4
@@ -82,6 +94,7 @@ services:
       timeout: 5s
       retries: 5
     mem_limit: 512m
+    logging: *default-logging
 
   redis:
     image: redis:7-alpine
@@ -96,6 +109,7 @@ services:
       timeout: 5s
       retries: 10
     mem_limit: 128m
+    logging: *default-logging
 
   user-service:
     build:
@@ -117,6 +131,7 @@ services:
       discovery-server:
         condition: service_healthy
     mem_limit: 512m
+    logging: *default-logging
 
   payment-service:
     build:
@@ -142,6 +157,7 @@ services:
       user-service:
         condition: service_healthy
     mem_limit: 512m
+    logging: *default-logging
 
   product-service:
     build:
@@ -167,6 +183,7 @@ services:
       user-service:
         condition: service_healthy
     mem_limit: 512m
+    logging: *default-logging
 
   order-service:
     build:
@@ -193,6 +210,7 @@ services:
       user-service:
         condition: service_healthy
     mem_limit: 512m
+    logging: *default-logging
 
   api-gateway:
     build:
@@ -223,6 +241,7 @@ services:
       order-service:
         condition: service_healthy
     mem_limit: 512m
+    logging: *default-logging
 
   notification-service:
     build:
@@ -233,12 +252,14 @@ services:
     environment:
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       SERVER_PORT: ${NOTIFICATION_SERVICE_PORT}
+      APP_ENVIRONMENT: docker
     ports:
       - "${NOTIFICATION_SERVICE_PORT}:${NOTIFICATION_SERVICE_PORT}"
     depends_on:
       - kafka:
           condition: service_healthy
     mem_limit: 384m
+    logging: *default-logging
 
   kafka:
     image: apache/kafka:latest
@@ -259,6 +280,7 @@ services:
     ports:
       - "9092:9092"
     mem_limit: 512m
+    logging: *default-logging
     healthcheck:
       test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092"]
       interval: 10s
@@ -274,6 +296,7 @@ services:
     ports:
       - "9090:9090"
     mem_limit: 256m
+    logging: *default-logging
 
   grafana:
     image: grafana/grafana:13.2.1
@@ -283,13 +306,70 @@ services:
       GF_USERS_ALLOW_SIGN_UP: "false"
     volumes:
       - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
-      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
       - grafana-data:/var/lib/grafana
     ports:
       - "3000:3000"
     depends_on:
       - prometheus
     mem_limit: 256m
+    logging: *default-logging
+
+  kafka-logs-topic:
+    image: apache/kafka:latest
+    profiles: [ "logging" ]
+    entrypoint: [ "/opt/kafka/bin/kafka-topics.sh" ]
+    command: [ "--bootstrap-server", "kafka:9092", "--create", "--if-not-exists",
+               "--topic", "platform-logs", "--partitions", "3", "--replication-factor", "1",
+               "--config", "retention.ms=86400000", "--config", "retention.bytes=536870912" ]
+    depends_on:
+      kafka:
+        condition: service_healthy
+    restart: "no"
+    mem_limit: 256m
+    logging: *default-logging
+
+  vector-agent:
+    image: timberio/vector:0.47.0-alpine
+    profiles: [ "logging" ]
+    command: [ "--config", "/etc/vector/vector.yaml" ]
+    environment:
+      LOG_ENVIRONMENT: docker
+    volumes:
+      - ./monitoring/vector/vector-agent.yaml:/etc/vector/vector.yaml:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - vector-agent-data:/var/lib/vector
+    depends_on:
+      kafka-logs-topic:
+        condition: service_completed_successfully
+    mem_limit: 256m
+    logging: *default-logging
+
+  vector-aggregator:
+    image: timberio/vector:0.47.0-alpine
+    profiles: [ "logging" ]
+    command: [ "--config", "/etc/vector/vector.yaml" ]
+    volumes:
+      - ./monitoring/vector/vector-aggregator.yaml:/etc/vector/vector.yaml:ro
+      - vector-aggregator-data:/var/lib/vector
+    depends_on:
+      kafka-logs-topic:
+        condition: service_completed_successfully
+      loki:
+        condition: service_started
+    mem_limit: 256m
+    logging: *default-logging
+
+  loki:
+    image: grafana/loki:3.5.1
+    profiles: [ "logging" ]
+    command: [ "-config.file=/etc/loki/loki.yaml" ]
+    volumes:
+      - ./monitoring/loki/loki.yaml:/etc/loki/loki.yaml:ro
+      - loki-data:/loki
+    ports:
+      - "3100:3100"
+    mem_limit: 384m
+    logging: *default-logging
 
 volumes:
   postgres-user-data:
@@ -298,3 +378,6 @@ volumes:
   mongo-product-data:
   prometheus-data:
   grafana-data:
+  loki-data:
+  vector-agent-data:
+  vector-aggregator-data:

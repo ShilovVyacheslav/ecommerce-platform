@@ -1,0 +1,81 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: vector-aggregator-config
+  namespace: ecommerce
+data:
+  vector.yaml: |
+    data_dir: /vector-data-dir
+
+    sources:
+      kafka:
+        type: kafka
+        bootstrap_servers: kafka:9092
+        group_id: vector-loki
+        topics: [ platform-logs ]
+        auto_offset_reset: earliest
+        decoding:
+          codec: json
+
+    transforms:
+      cleanup:
+        type: remap
+        inputs: [ kafka ]
+        source: |
+          del(.headers)
+          del(.message_key)
+          del(.offset)
+          del(.partition)
+          del(.source_type)
+          del(.topic)
+
+    sinks:
+      loki:
+        type: loki
+        inputs: [ cleanup ]
+        endpoint: http://loki:3100
+        encoding:
+          codec: json
+        labels:
+          service: "{{ service }}"
+          level: "{{ level }}"
+          env: "{{ env }}"
+        buffer:
+          type: memory
+          max_events: 10000
+          when_full: block
+        batch:
+          max_bytes: 1048576
+          timeout_secs: 1
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vector-aggregator
+  namespace: ecommerce
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: vector-aggregator }
+  template:
+    metadata:
+      labels: { app: vector-aggregator }
+    spec:
+      containers:
+        - name: vector
+          image: timberio/vector:0.47.0-alpine
+          args: [ "--config-dir", "/etc/vector/" ]
+          resources:
+            requests: { memory: "64Mi", cpu: "50m" }
+            limits: { memory: "256Mi", cpu: "250m" }
+          volumeMounts:
+            - name: config
+              mountPath: /etc/vector
+              readOnly: true
+            - name: data
+              mountPath: /vector-data-dir
+      volumes:
+        - name: config
+          configMap: { name: vector-aggregator-config }
+        - name: data
+          emptyDir: {}

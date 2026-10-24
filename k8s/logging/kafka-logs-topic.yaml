@@ -1,0 +1,20 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: kafka-logs-topic
+  namespace: ecommerce
+spec:
+  backoffLimit: 20
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: create-topic
+          image: apache/kafka:latest
+          command: [ "/opt/kafka/bin/kafka-topics.sh" ]
+          args: [ "--bootstrap-server", "kafka:9092", "--create", "--if-not-exists",
+                  "--topic", "platform-logs", "--partitions", "3", "--replication-factor", "1",
+                  "--config", "retention.ms=86400000", "--config", "retention.bytes=536870912" ]
+          resources:
+            requests: { memory: "128Mi", cpu: "50m" }
+            limits: { memory: "256Mi", cpu: "250m" }

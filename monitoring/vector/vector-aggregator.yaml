@@ -1,0 +1,42 @@
+data_dir: /var/lib/vector
+
+sources:
+  kafka:
+    type: kafka
+    bootstrap_servers: kafka:9092
+    group_id: vector-loki
+    topics: [platform-logs]
+    auto_offset_reset: earliest
+    decoding:
+      codec: json
+
+transforms:
+  cleanup:
+    type: remap
+    inputs: [kafka]
+    source: |
+      del(.headers)
+      del(.message_key)
+      del(.offset)
+      del(.partition)
+      del(.source_type)
+      del(.topic)
+
+sinks:
+  loki:
+    type: loki
+    inputs: [cleanup]
+    endpoint: http://loki:3100
+    encoding:
+      codec: json
+    labels:
+      service: "{{ service }}"
+      level: "{{ level }}"
+      env: "{{ env }}"
+    buffer:
+      type: memory
+      max_events: 10000
+      when_full: block
+    batch:
+      max_bytes: 1048576
+      timeout_secs: 1
