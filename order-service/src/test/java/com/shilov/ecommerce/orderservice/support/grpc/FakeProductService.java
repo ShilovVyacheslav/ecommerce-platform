@@ -37,7 +37,7 @@ import static com.shilov.ecommerce.constants.Constants.GRPC_INTERNAL_API_KEY_HEA
  * <p>
  * By default every product of {@link TestOrders} is in the catalog and every reservation RPC succeeds.
  */
-public class FakeProductService extends ProductServiceGrpc.ProductServiceImplBase {
+public final class FakeProductService extends ProductServiceGrpc.ProductServiceImplBase {
 
     private static final Metadata.Key<String> API_KEY_HEADER =
             Metadata.Key.of(GRPC_INTERNAL_API_KEY_HEADER, Metadata.ASCII_STRING_MARSHALLER);

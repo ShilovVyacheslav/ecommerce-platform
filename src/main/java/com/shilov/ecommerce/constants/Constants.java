@@ -11,5 +11,7 @@ public final class Constants {
     public static final String CORRELATION_ID_HEADER = "X-Correlation-Id";
     public static final String GRPC_CORRELATION_ID_HEADER = "x-correlation-id";
     public static final String CORRELATION_ID_MDC_KEY = "correlationId";
+    public static final String ACTION_MDC_KEY = "action";
+    public static final String USER_ID_MDC_KEY = "userId";
 
 }

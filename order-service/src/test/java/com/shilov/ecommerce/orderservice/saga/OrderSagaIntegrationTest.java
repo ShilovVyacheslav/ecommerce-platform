@@ -667,7 +667,7 @@ public class OrderSagaIntegrationTest extends AbstractIntegrationTest {
         }
 
         @Test
-        @DisplayName("Incoming X-Correlation-Id -> propagated to parallel product lookups, every saga step and compensation")
+        @DisplayName("Incoming X-Correlation-Id -> propagated to product lookups, every saga step, compensation and the outbox")
         void createOrder_WithCorrelationId_PropagatesItToEveryOutboundCall() throws Exception {
             String correlationId = UUID.randomUUID().toString();
 
@@ -684,6 +684,10 @@ public class OrderSagaIntegrationTest extends AbstractIntegrationTest {
                             tuple("ReserveStock", correlationId),
                             tuple("ConfirmReservation", correlationId),
                             tuple("ReleaseReservation", correlationId));
+            assertThat(outboxEventRepository.findAll()).singleElement()
+                    .as("stored with the event, so the Kafka consumer continues the same correlation id")
+                    .extracting(OutboxEvent::getCorrelationId)
+                    .isEqualTo(correlationId);
         }
 
     }

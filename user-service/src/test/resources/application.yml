@@ -21,3 +21,7 @@ spring:
 eureka:
   client:
     enabled: false
+
+app:
+  logging:
+    format: text

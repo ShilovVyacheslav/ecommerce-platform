@@ -26,6 +26,8 @@ messaging:
     enabled: false
 
 app:
+  logging:
+    format: text
   http:
     clients:
       payment-service:

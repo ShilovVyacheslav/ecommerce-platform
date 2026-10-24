@@ -1,6 +1,8 @@
 spring:
   application:
     name: api-gateway
+  reactor:
+    context-propagation: auto
   data:
     redis:
       host: ${REDIS_HOST}
@@ -125,6 +127,9 @@ eureka:
       defaultZone: ${EUREKA_URL}
 
 management:
+  tracing:
+    sampling:
+      probability: ${TRACING_SAMPLING_PROBABILITY:0.1}
   endpoints:
     web:
       exposure:

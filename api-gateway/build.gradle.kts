@@ -36,6 +36,7 @@ dependencies {
 	implementation("org.springframework.cloud:spring-cloud-starter-netflix-eureka-client")
 	implementation("org.springdoc:springdoc-openapi-starter-webflux-ui:2.7.0")
 	implementation("io.micrometer:micrometer-registry-prometheus")
+	implementation("io.micrometer:micrometer-tracing-bridge-otel")
 
 	compileOnly("org.projectlombok:lombok")
 	annotationProcessor("org.projectlombok:lombok")
@@ -48,6 +49,10 @@ dependencyManagement {
 	imports {
 		mavenBom("org.springframework.cloud:spring-cloud-dependencies:${property("springCloudVersion")}")
 	}
+}
+
+tasks.withType<Test> {
+	useJUnitPlatform()
 }
 
 tasks.named<Jar>("jar") {

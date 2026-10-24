@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<included>
+    <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+
+    <springProperty scope="context" name="SERVICE_NAME" source="spring.application.name" defaultValue="unknown-service"/>
+    <springProperty scope="context" name="SERVICE_VERSION" source="spring.application.version" defaultValue="unknown"/>
+    <springProperty scope="context" name="ENVIRONMENT" source="app.environment" defaultValue="local"/>
+    <springProperty scope="context" name="LOG_FORMAT" source="app.logging.format" defaultValue="json"/>
+    <springProperty scope="context" name="LOG_ASYNC_QUEUE_SIZE" source="app.logging.async.queue-size" defaultValue="8192"/>
+    <springProperty scope="context" name="LOG_MAX_MESSAGE_LENGTH" source="app.logging.max-message-length" defaultValue="4096"/>
+    <springProperty scope="context" name="LOG_MAX_STACK_TRACE_LENGTH" source="app.logging.max-stack-trace-length" defaultValue="8192"/>
+
+    <include resource="com/shilov/ecommerce/logging/console-${LOG_FORMAT}.xml"/>
+
+    <appender name="ASYNC_CONSOLE" class="ch.qos.logback.classic.AsyncAppender">
+        <queueSize>${LOG_ASYNC_QUEUE_SIZE}</queueSize>
+        <neverBlock>true</neverBlock>
+        <includeCallerData>false</includeCallerData>
+        <maxFlushTime>5000</maxFlushTime>
+        <appender-ref ref="CONSOLE"/>
+    </appender>
+
+    <logger name="org.apache.kafka" level="WARN"/>
+    <logger name="org.mongodb.driver" level="WARN"/>
+    <logger name="com.netflix.discovery" level="WARN"/>
+    <logger name="com.netflix.eureka" level="WARN"/>
+    <logger name="io.grpc.netty" level="WARN"/>
+    <logger name="org.hibernate.orm.deprecation" level="ERROR"/>
+
+    <root level="INFO">
+        <appender-ref ref="ASYNC_CONSOLE"/>
+    </root>
+</included>

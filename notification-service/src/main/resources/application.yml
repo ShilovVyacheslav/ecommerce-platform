@@ -5,6 +5,8 @@ spring:
     name: notification-service
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    listener:
+      observation-enabled: true
     consumer:
       group-id: notification-service
       auto-offset-reset: earliest
@@ -15,6 +17,9 @@ server:
   port: ${SERVER_PORT:8085}
 
 management:
+  tracing:
+    sampling:
+      probability: ${TRACING_SAMPLING_PROBABILITY:0.1}
   endpoints:
     web:
       exposure:

@@ -1,5 +1,5 @@
 plugins {
-    java
+    `java-library`
     id("io.spring.dependency-management") version "1.1.7"
 }
 
@@ -30,12 +30,18 @@ dependencies {
     implementation("com.fasterxml.jackson.core:jackson-databind")
     implementation("jakarta.validation:jakarta.validation-api")
     implementation("org.slf4j:slf4j-api")
-    implementation("net.logstash.logback:logstash-logback-encoder:8.0")
+    api("net.logstash.logback:logstash-logback-encoder:8.0")
     compileOnly("jakarta.servlet:jakarta.servlet-api")
+    compileOnly("org.springframework:spring-webmvc")
+    compileOnly("org.springframework.security:spring-security-oauth2-resource-server")
     compileOnly("org.projectlombok:lombok")
     annotationProcessor("org.projectlombok:lombok")
 
     testImplementation("org.springframework.boot:spring-boot-starter-test")
+    testImplementation("org.springframework:spring-webmvc")
+    testImplementation("jakarta.servlet:jakarta.servlet-api")
+    testImplementation("org.springframework.security:spring-security-oauth2-resource-server")
+    testImplementation("org.springframework.security:spring-security-oauth2-jose")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 

@@ -22,6 +22,8 @@ spring:
           jwk-set-uri: ${SECURITY_JWT_JWKS_URI}
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    template:
+      observation-enabled: true
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.apache.kafka.common.serialization.StringSerializer
@@ -57,6 +59,9 @@ eureka:
       defaultZone: ${EUREKA_URL}
 
 management:
+  tracing:
+    sampling:
+      probability: ${TRACING_SAMPLING_PROBABILITY:0.1}
   endpoints:
     web:
       exposure:

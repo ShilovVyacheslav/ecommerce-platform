@@ -15,6 +15,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
+import static net.logstash.logback.argument.StructuredArguments.v;
+
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -28,9 +30,10 @@ public class ProductServiceImpl implements ProductService {
 
         validateBySku(productCreateDto.getSku());
 
-        Product product = productMapper.toDocument(productCreateDto);
+        Product product = productRepository.save(productMapper.toDocument(productCreateDto));
+        log.info("Product {} created with SKU {}", v("productId", product.getId()), v("sku", product.getSku()));
 
-        return productMapper.toDto(productRepository.save(product));
+        return productMapper.toDto(product);
     }
 
     @Override
@@ -39,8 +42,10 @@ public class ProductServiceImpl implements ProductService {
         Product product = findOrThrow(id);
 
         productMapper.fromUpdateDto(productUpdateDto, product);
+        product = productRepository.save(product);
+        log.info("Product {} updated", v("productId", product.getId()));
 
-        return productMapper.toDto(productRepository.save(product));
+        return productMapper.toDto(product);
     }
 
     @Override
@@ -62,8 +67,13 @@ public class ProductServiceImpl implements ProductService {
             throw ProductException.invalidStockAdjustment();
         }
 
+        int previousStockQuantity = product.getStockQuantity();
         product.setStockQuantity(newStockQuantity);
-        return productMapper.toDto(productRepository.save(product));
+        product = productRepository.save(product);
+        log.info("Stock of product {} adjusted by {}: {} -> {}",
+                v("productId", product.getId()), v("stockDelta", stockAdjustmentDto.getDelta()),
+                previousStockQuantity, v("stockQuantity", newStockQuantity));
+        return productMapper.toDto(product);
     }
 
     private void validateBySku(String sku) {

@@ -16,8 +16,7 @@ public class GrpcExceptionTranslator implements GrpcExceptionHandler {
     @Override
     public StatusException handleException(Throwable exception) {
         if (exception instanceof ApplicationException applicationException) {
-            log.warn("ApplicationException [{}]: {}",
-                    applicationException.getClass().getSimpleName(), applicationException.getMessage());
+            log.debug("Call rejected [{}]: {}", applicationException.getCode(), applicationException.getMessage());
             return toGrpcStatus(applicationException).asException();
         }
         if (exception instanceof StatusException statusException) {
@@ -26,7 +25,7 @@ public class GrpcExceptionTranslator implements GrpcExceptionHandler {
         if (exception instanceof StatusRuntimeException statusRuntimeException) {
             return statusRuntimeException.getStatus().asException();
         }
-        log.error("Unhandled exception in gRPC service", exception);
+        log.error("Unhandled exception while processing the gRPC call", exception);
         return Status.INTERNAL
                 .withDescription("An unexpected error occurred")
                 .withCause(exception)

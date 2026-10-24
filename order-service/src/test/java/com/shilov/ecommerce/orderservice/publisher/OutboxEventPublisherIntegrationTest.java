@@ -12,6 +12,7 @@ import com.shilov.ecommerce.orderservice.support.TestOrders;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
+import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -24,6 +25,7 @@ import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.TestPropertySource;
 import org.testcontainers.kafka.KafkaContainer;
 
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
@@ -33,6 +35,7 @@ import java.util.UUID;
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.post;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
+import static com.shilov.ecommerce.constants.Constants.CORRELATION_ID_HEADER;
 import static com.shilov.ecommerce.orderservice.support.wiremock.PaymentServiceCallRecorder.PAYMENTS_PATH;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
@@ -110,6 +113,19 @@ public class OutboxEventPublisherIntegrationTest extends AbstractIntegrationTest
         assertThat(payload.getStatus()).isEqualTo(OrderStatus.CANCELLED.name());
         assertThat(payload.getFailureReason()).isEqualTo("Payment declined: " + DECLINE_REASON);
         awaitAllOutboxEventsPublished();
+    }
+
+    @Test
+    @DisplayName("Request with X-Correlation-Id -> the event carries it in the X-Correlation-Id record header")
+    void publishPendingEvents_RequestWithCorrelationId_PropagatesItInRecordHeader() throws Exception {
+        stubCharge(PaymentStatus.COMPLETED, null);
+        String correlationId = UUID.randomUUID().toString();
+
+        OrderResponseDto response = placeOrder(request -> request.header(CORRELATION_ID_HEADER, correlationId));
+
+        Header header = awaitSingleRecord(response.getId()).headers().lastHeader(CORRELATION_ID_HEADER);
+        assertThat(header).isNotNull();
+        assertThat(new String(header.value(), StandardCharsets.UTF_8)).isEqualTo(correlationId);
     }
 
     @Test

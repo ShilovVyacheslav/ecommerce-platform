@@ -1,6 +1,7 @@
 package com.shilov.ecommerce.orderservice.config;
 
 import com.shilov.ecommerce.orderservice.config.props.HttpClientsProperties;
+import io.micrometer.observation.ObservationRegistry;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.MDC;
@@ -40,7 +41,8 @@ public class RestClientConfig {
     }
 
     @Bean
-    public RestClient paymentServiceRestClient(RestClient.Builder loadBalancedRestClientBuilder) {
+    public RestClient paymentServiceRestClient(RestClient.Builder loadBalancedRestClientBuilder,
+                                               ObservationRegistry observationRegistry) {
         HttpClientsProperties.TimeoutSettings settings =
                 httpClientsProperties.getClients().get(PAYMENT_SERVICE);
         HttpClient httpClient = HttpClient.newBuilder()
@@ -52,6 +54,7 @@ public class RestClientConfig {
         return loadBalancedRestClientBuilder.clone()
                 .baseUrl("http://payment-service")
                 .requestFactory(requestFactory)
+                .observationRegistry(observationRegistry)
                 .requestInterceptor(correlationIdPropagatingInterceptor())
                 .build();
     }

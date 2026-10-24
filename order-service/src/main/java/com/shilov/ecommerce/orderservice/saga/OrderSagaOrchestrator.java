@@ -13,13 +13,16 @@ import com.shilov.ecommerce.orderservice.repository.OrderRepository;
 import com.shilov.ecommerce.orderservice.service.OutboxService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.MDC;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.TimeUnit;
 
 import static com.shilov.ecommerce.orderservice.enums.ErrorCode.INSUFFICIENT_STOCK_ERROR;
 import static com.shilov.ecommerce.orderservice.enums.ErrorCode.PRODUCT_NOT_FOUND_ERROR;
+import static net.logstash.logback.argument.StructuredArguments.v;
 
 @Slf4j
 @Component
@@ -28,6 +31,7 @@ public class OrderSagaOrchestrator {
 
     private static final int FAILURE_REASON_MAX_LENGTH = 500;
     private static final String MANUAL_REVIEW_PREFIX = "Automatic compensation failed - requires manual review: ";
+    private static final String ORDER_ID_MDC_KEY = "orderId";
 
     private final OrderRepository orderRepository;
     private final OutboxService outboxService;
@@ -35,25 +39,52 @@ public class OrderSagaOrchestrator {
     private final PaymentServiceClient paymentServiceClient;
 
     public Order process(Order order) {
-        log.info("Saga started for order {} (status: {}, total: {} {})",
-                order.getId(), order.getStatus(), order.getTotalAmount(), order.getCurrency());
+        MDC.put(ORDER_ID_MDC_KEY, String.valueOf(order.getId()));
+        try {
+            OrderStatus initialStatus = order.getStatus();
+            if (isTerminal(initialStatus)) {
+                log.info("Saga skipped for order {}: already {}", order.getId(), initialStatus);
+                return order;
+            }
 
+            log.info("Saga started for order {} from {} ({} {})",
+                    order.getId(), initialStatus, order.getTotalAmount(), order.getCurrency());
+            long startNanos = System.nanoTime();
+
+            order = runSteps(order);
+
+            logOutcome(order, TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNanos));
+            return order;
+        } finally {
+            MDC.remove(ORDER_ID_MDC_KEY);
+        }
+    }
+
+    private Order runSteps(Order order) {
         order = reserveStock(order);
         if (order.getStatus() == OrderStatus.CANCELLED) {
-            log.warn("Saga terminated for order {} at STOCK_RESERVED step: {}",
-                    order.getId(), order.getFailureReason());
             return order;
         }
         order = chargePayment(order);
         if (order.getStatus() == OrderStatus.CANCELLED) {
-            log.warn("Saga terminated for order {} at PAID step: {}",
-                    order.getId(), order.getFailureReason());
             return order;
         }
+        return confirmStock(order);
+    }
 
-        order = confirmStock(order);
-        log.info("Saga finished for order {} with status {}", order.getId(), order.getStatus());
-        return order;
+    private void logOutcome(Order order, long durationMs) {
+        if (order.getStatus() == OrderStatus.CONFIRMED) {
+            log.info("Saga completed for order {}: {} in {} ms",
+                    order.getId(), v("orderStatus", order.getStatus()), v("durationMs", durationMs));
+        } else if (order.getFailureReason() != null && order.getFailureReason().startsWith(MANUAL_REVIEW_PREFIX)) {
+            log.error("Saga {} for order {} in {} ms and REQUIRES MANUAL REVIEW: {}",
+                    v("orderStatus", order.getStatus()), order.getId(), v("durationMs", durationMs),
+                    order.getFailureReason());
+        } else {
+            log.warn("Saga {} for order {} in {} ms: {}",
+                    v("orderStatus", order.getStatus()), order.getId(), v("durationMs", durationMs),
+                    order.getFailureReason());
+        }
     }
 
     private Order reserveStock(Order order) {
@@ -68,20 +99,22 @@ public class OrderSagaOrchestrator {
                         .build())
                 .toList();
 
-        log.info("Reserving stock for order {} ({} item(s))", order.getId(), items.size());
+        log.debug("Reserving stock for order {} ({} item(s))", order.getId(), items.size());
         try {
             productServiceClient.reserve(order.getId().toString(), items);
         } catch (SagaStepException ex) {
-            log.warn("Stock reservation failed for order {}: {}", order.getId(), ex.getMessage());
             String reason = "Stock reservation failed: " + ex.getMessage();
             if (isBusinessRejection(ex)) {
+                log.debug("Stock reservation rejected for order {}: {}", order.getId(), ex.getMessage());
                 return cancel(order, reason, true);
             }
+            log.warn("Stock reservation outcome unknown for order {} - releasing defensively: {}",
+                    order.getId(), causeOf(ex));
             return cancel(order, reason, releaseStockQuietly(order));
         }
 
         order.setStatus(OrderStatus.STOCK_RESERVED);
-        log.info("Stock reserved for order {}", order.getId());
+        log.debug("Stock reserved for order {}", order.getId());
         return orderRepository.save(order);
     }
 
@@ -90,28 +123,30 @@ public class OrderSagaOrchestrator {
             return order;
         }
 
-        log.info("Charging payment for order {}", order.getId());
+        log.debug("Charging payment for order {}", order.getId());
         PaymentResponseDto payment;
         try {
             payment = paymentServiceClient.charge(order.getId(), order.getTotalAmount(), order.getCurrency());
         } catch (SagaStepException ex) {
-            log.error("Payment call failed for order {} - outcome unknown: {}", order.getId(), ex.getMessage());
+            log.warn("Payment call failed for order {} - outcome unknown, refunding defensively: {}",
+                    order.getId(), causeOf(ex));
             return compensateUnknownChargeOutcome(order, "Payment service unavailable");
         }
 
         if (payment == null || payment.getStatus() == null) {
-            log.error("Payment service returned no payment status for order {} - outcome unknown", order.getId());
+            log.warn("Payment service returned no payment status for order {} - outcome unknown, refunding defensively",
+                    order.getId());
             return compensateUnknownChargeOutcome(order, "Payment service returned an invalid response");
         }
 
         if (payment.getStatus() == PaymentStatus.COMPLETED) {
             order.setStatus(OrderStatus.PAID);
-            log.info("Payment completed for order {}", order.getId());
+            log.debug("Payment completed for order {}", order.getId());
             return orderRepository.save(order);
         }
 
         String declineReason = Objects.requireNonNullElse(payment.getFailureReason(), "unknown");
-        log.warn("Payment declined for order {}: {}", order.getId(), declineReason);
+        log.debug("Payment declined for order {}: {}", order.getId(), declineReason);
         return cancel(order, "Payment declined: " + declineReason, releaseStockQuietly(order));
     }
 
@@ -122,8 +157,8 @@ public class OrderSagaOrchestrator {
         try {
             productServiceClient.confirm(order.getId().toString());
         } catch (SagaStepException ex) {
-            log.error("Stock confirmation failed for order {} after successful payment - compensating: {}",
-                    order.getId(), ex.getMessage());
+            log.warn("Stock confirmation failed for order {} after successful payment - refunding and releasing: {}",
+                    order.getId(), causeOf(ex));
 
             boolean refunded = refundQuietly(order);
             boolean released = releaseStockQuietly(order);
@@ -137,7 +172,7 @@ public class OrderSagaOrchestrator {
         }
 
         order.setStatus(OrderStatus.CONFIRMED);
-        log.info("Stock confirmed for order {}", order.getId());
+        log.debug("Stock confirmed for order {}", order.getId());
         return outboxService.saveAndPublish(order, OutboxEventType.ORDER_CONFIRMED);
     }
 
@@ -150,7 +185,7 @@ public class OrderSagaOrchestrator {
 
     private boolean releaseStockQuietly(Order order) {
         try {
-            log.info("Compensating: releasing stock for order {}", order.getId());
+            log.debug("Compensating: releasing stock for order {}", order.getId());
             productServiceClient.release(order.getId().toString());
             return true;
         } catch (RuntimeException ex) {
@@ -168,7 +203,7 @@ public class OrderSagaOrchestrator {
 
     private boolean refundQuietly(Order order) {
         try {
-            log.info("Compensating: refunding payment for order {}", order.getId());
+            log.debug("Compensating: refunding payment for order {}", order.getId());
             paymentServiceClient.refund(order.getId());
             return true;
         } catch (RuntimeException ex) {
@@ -176,6 +211,15 @@ public class OrderSagaOrchestrator {
                     order.getId(), ex);
             return false;
         }
+    }
+
+    private static boolean isTerminal(OrderStatus status) {
+        return status == OrderStatus.CONFIRMED || status == OrderStatus.CANCELLED;
+    }
+
+    private static String causeOf(SagaStepException ex) {
+        Throwable cause = ex.getCause();
+        return cause == null ? ex.getMessage() : ex.getMessage() + " (" + cause + ")";
     }
 
     private static boolean isBusinessRejection(SagaStepException ex) {

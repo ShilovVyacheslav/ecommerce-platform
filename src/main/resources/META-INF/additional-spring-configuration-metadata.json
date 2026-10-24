@@ -1,0 +1,49 @@
+{
+  "properties": [
+    {
+      "name": "app.environment",
+      "type": "java.lang.String",
+      "description": "Deployment environment written to the 'env' field of every log line, e.g. local, docker, k8s.",
+      "defaultValue": "local"
+    },
+    {
+      "name": "app.logging.format",
+      "type": "java.lang.String",
+      "description": "Console log format: 'json' (one JSON object per line, for log shipping) or 'text' (human-readable).",
+      "defaultValue": "json"
+    },
+    {
+      "name": "app.logging.async.queue-size",
+      "type": "java.lang.Integer",
+      "description": "Capacity of the asynchronous logging queue; when it is 80% full, TRACE/DEBUG/INFO events are dropped first.",
+      "defaultValue": 8192
+    },
+    {
+      "name": "app.logging.max-message-length",
+      "type": "java.lang.Integer",
+      "description": "Maximum length of the 'message' field of a JSON log line; longer messages are cut.",
+      "defaultValue": 4096
+    },
+    {
+      "name": "app.logging.max-stack-trace-length",
+      "type": "java.lang.Integer",
+      "description": "Maximum length of the 'stackTrace' field of a JSON log line.",
+      "defaultValue": 8192
+    },
+    {
+      "name": "app.logging.access.slow-request-threshold",
+      "type": "java.time.Duration",
+      "description": "Requests that take at least this long are written to the access log at WARN level.",
+      "defaultValue": "2s"
+    }
+  ],
+  "hints": [
+    {
+      "name": "app.logging.format",
+      "values": [
+        { "value": "json", "description": "One JSON object per line." },
+        { "value": "text", "description": "Colored human-readable lines for local development and tests." }
+      ]
+    }
+  ]
+}

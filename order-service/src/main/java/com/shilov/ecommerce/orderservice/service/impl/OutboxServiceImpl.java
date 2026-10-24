@@ -10,11 +10,13 @@ import com.shilov.ecommerce.orderservice.repository.OrderRepository;
 import com.shilov.ecommerce.orderservice.repository.OutboxEventRepository;
 import com.shilov.ecommerce.orderservice.service.OutboxService;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.MDC;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
-import java.time.LocalDateTime;
+
+import static com.shilov.ecommerce.constants.Constants.CORRELATION_ID_MDC_KEY;
 
 @Service
 @RequiredArgsConstructor
@@ -51,6 +53,7 @@ public class OutboxServiceImpl implements OutboxService {
                 .aggregateId(savedOrder.getId())
                 .eventType(outboxEventType.name())
                 .payload(json)
+                .correlationId(MDC.get(CORRELATION_ID_MDC_KEY))
                 .build());
         return savedOrder;
     }

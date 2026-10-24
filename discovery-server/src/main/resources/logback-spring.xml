@@ -1,0 +1,3 @@
+<configuration>
+    <include resource="com/shilov/ecommerce/logging/logback-base.xml"/>
+</configuration>

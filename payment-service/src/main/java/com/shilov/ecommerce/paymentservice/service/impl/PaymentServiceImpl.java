@@ -19,6 +19,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.Optional;
 import java.util.UUID;
 
+import static net.logstash.logback.argument.StructuredArguments.v;
+
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -34,6 +36,9 @@ public class PaymentServiceImpl implements PaymentService {
     public PaymentResponseDto charge(ChargeRequestDto chargeRequestDto) {
         Optional<Payment> existing = paymentRepository.findByOrderId(chargeRequestDto.getOrderId());
         if (existing.isPresent()) {
+            log.info("Order {} already charged, returning payment {} in status {} (idempotent replay)",
+                    v("orderId", chargeRequestDto.getOrderId()), v("paymentId", existing.get().getId()),
+                    v("paymentStatus", existing.get().getStatus()));
             return paymentMapper.toDto(existing.get());
         }
 
@@ -52,6 +57,18 @@ public class PaymentServiceImpl implements PaymentService {
 
         if (gatewayResult.isApproved()) {
             ledgerService.recordCharge(payment.getId(), payment.getAmount(), payment.getCurrency());
+            log.info("Payment {} for order {} {}: {} {}",
+                    v("paymentId", payment.getId()), v("orderId", payment.getOrderId()),
+                    v("paymentStatus", payment.getStatus()),
+                    v("amount", payment.getAmount()), v("currency", payment.getCurrency()));
+        } else {
+            log.atInfo()
+                    .addKeyValue("amount", payment.getAmount())
+                    .addKeyValue("currency", payment.getCurrency())
+                    .log("Payment {} for order {} {}: {}",
+                            v("paymentId", payment.getId()), v("orderId", payment.getOrderId()),
+                            v("paymentStatus", payment.getStatus()),
+                            v("declineReason", payment.getFailureReason()));
         }
 
         return paymentMapper.toDto(payment);
@@ -62,6 +79,8 @@ public class PaymentServiceImpl implements PaymentService {
     public PaymentResponseDto refund(UUID orderId) {
         Payment payment = findOrThrow(orderId);
         if (payment.getStatus() != PaymentStatus.COMPLETED) {
+            log.info("Refund of payment {} for order {} skipped: payment is {}",
+                    v("paymentId", payment.getId()), v("orderId", orderId), v("paymentStatus", payment.getStatus()));
             return paymentMapper.toDto(payment);
         }
 
@@ -71,6 +90,10 @@ public class PaymentServiceImpl implements PaymentService {
 
         payment.setStatus(PaymentStatus.REFUNDED);
         ledgerService.recordRefund(payment.getId(), payment.getAmount(), payment.getCurrency());
+        log.info("Payment {} for order {} {}: {} {}",
+                v("paymentId", payment.getId()), v("orderId", orderId),
+                v("paymentStatus", payment.getStatus()),
+                v("amount", payment.getAmount()), v("currency", payment.getCurrency()));
         return paymentMapper.toDto(payment);
     }
 

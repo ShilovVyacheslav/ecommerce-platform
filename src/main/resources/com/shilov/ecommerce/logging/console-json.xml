@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<included>
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder class="net.logstash.logback.encoder.LoggingEventCompositeJsonEncoder">
+            <jsonGeneratorDecorator class="net.logstash.logback.mask.MaskingJsonGeneratorDecorator">
+                <defaultMask>****</defaultMask>
+                <paths>password,passwd,secret,token,accessToken,refreshToken,authorization,apiKey,internalApiKey,cardNumber,pan,cvv</paths>
+                <value>eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}</value>
+                <value>(?i)\b(Bearer|Basic)\s+[A-Za-z0-9._~+/=-]{8,}</value>
+            </jsonGeneratorDecorator>
+            <providers>
+                <timestamp>
+                    <fieldName>@timestamp</fieldName>
+                    <timeZone>UTC</timeZone>
+                </timestamp>
+                <logLevel>
+                    <fieldName>level</fieldName>
+                </logLevel>
+                <pattern>
+                    <pattern>{"service":"${SERVICE_NAME}","version":"${SERVICE_VERSION}","env":"${ENVIRONMENT}","host":"${HOSTNAME}"}</pattern>
+                </pattern>
+                <loggerName>
+                    <fieldName>logger</fieldName>
+                    <shortenedLoggerNameLength>40</shortenedLoggerNameLength>
+                </loggerName>
+                <threadName>
+                    <fieldName>thread</fieldName>
+                </threadName>
+                <pattern>
+                    <pattern>{"message":"%.-${LOG_MAX_MESSAGE_LENGTH}message"}</pattern>
+                </pattern>
+                <mdc/>
+                <arguments/>
+                <keyValuePairs/>
+                <throwableClassName>
+                    <fieldName>errorType</fieldName>
+                    <useSimpleClassName>false</useSimpleClassName>
+                </throwableClassName>
+                <throwableRootCauseClassName>
+                    <fieldName>errorRootCause</fieldName>
+                    <useSimpleClassName>false</useSimpleClassName>
+                </throwableRootCauseClassName>
+                <stackHash>
+                    <fieldName>errorHash</fieldName>
+                </stackHash>
+                <stackTrace>
+                    <fieldName>stackTrace</fieldName>
+                    <throwableConverter class="net.logstash.logback.stacktrace.ShortenedThrowableConverter">
+                        <maxDepthPerThrowable>40</maxDepthPerThrowable>
+                        <maxLength>${LOG_MAX_STACK_TRACE_LENGTH}</maxLength>
+                        <shortenedClassNameLength>40</shortenedClassNameLength>
+                        <rootCauseFirst>true</rootCauseFirst>
+                        <omitCommonFrames>true</omitCommonFrames>
+                        <lineSeparator>UNIX</lineSeparator>
+                        <exclude>^java\.lang\.reflect\.</exclude>
+                        <exclude>^jdk\.internal\.reflect\.</exclude>
+                        <exclude>^sun\.reflect\.</exclude>
+                        <exclude>\$\$SpringCGLIB\$\$</exclude>
+                        <exclude>^org\.springframework\.cglib\.</exclude>
+                        <exclude>^org\.springframework\.aop\.</exclude>
+                        <exclude>^org\.springframework\.security\.web\.ObservationFilterChainDecorator</exclude>
+                        <exclude>^org\.springframework\.web\.filter\.OncePerRequestFilter</exclude>
+                        <exclude>^org\.apache\.catalina\.</exclude>
+                        <exclude>^org\.apache\.coyote\.</exclude>
+                        <exclude>^org\.apache\.tomcat\.</exclude>
+                        <exclude>^io\.micrometer\.observation\.</exclude>
+                    </throwableConverter>
+                </stackTrace>
+            </providers>
+        </encoder>
+    </appender>
+</included>

@@ -29,5 +29,7 @@ messaging:
     enabled: false
 
 app:
+  logging:
+    format: text
   internal:
     api-key: local-internal-api-key

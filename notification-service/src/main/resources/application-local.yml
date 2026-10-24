@@ -1,3 +1,7 @@
 messaging:
   kafka:
     enabled: false
+
+app:
+  logging:
+    format: text

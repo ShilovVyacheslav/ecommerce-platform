@@ -38,6 +38,9 @@ public class OutboxEvent {
     @Column(nullable = false, columnDefinition = "TEXT")
     private String payload;
 
+    @Column(name = "correlation_id", length = 64)
+    private String correlationId;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     @Builder.Default
     private LocalDateTime createdAt = LocalDateTime.now();

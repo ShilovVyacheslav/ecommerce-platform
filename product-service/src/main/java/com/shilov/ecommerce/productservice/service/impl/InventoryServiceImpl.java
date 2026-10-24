@@ -1,6 +1,7 @@
 package com.shilov.ecommerce.productservice.service.impl;
 
 import com.mongodb.DuplicateKeyException;
+import com.shilov.ecommerce.exception.ApplicationException;
 import com.shilov.ecommerce.productservice.document.Product;
 import com.shilov.ecommerce.productservice.document.StockReservation;
 import com.shilov.ecommerce.productservice.dto.ReservationItemDto;
@@ -22,6 +23,8 @@ import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.stereotype.Service;
 
+import static net.logstash.logback.argument.StructuredArguments.v;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -37,14 +40,14 @@ public class InventoryServiceImpl implements InventoryService {
 
     @Override
     public ReservationResponseDto reserve(ReservationRequestDto reservationRequestDto) {
-        log.info("Reserve request for order {} ({} item(s))",
+        log.debug("Reserve request for order {} ({} item(s))",
                 reservationRequestDto.getOrderId(), reservationRequestDto.getItems().size());
 
         List<StockReservation> existing = stockReservationRepository
                 .findByOrderId(reservationRequestDto.getOrderId());
         if (!existing.isEmpty()) {
-            log.info("Order {} already has reservations, returning existing state (idempotent)",
-                    reservationRequestDto.getOrderId());
+            log.info("Order {} already has reservations, returning the existing state (idempotent replay)",
+                    v("orderId", reservationRequestDto.getOrderId()));
             return buildResponse(reservationRequestDto.getOrderId(), existing);
         }
 
@@ -69,17 +72,24 @@ public class InventoryServiceImpl implements InventoryService {
             }
         } catch (RuntimeException ex) {
             rollback(created);
-            log.warn("Reservation rolled back for order {}: {}",
-                    reservationRequestDto.getOrderId(), ex.getMessage());
+            if (ex instanceof ApplicationException) {
+                log.info("Reservation for order {} rejected and rolled back ({} line(s) undone): {}",
+                        v("orderId", reservationRequestDto.getOrderId()), created.size(), ex.getMessage());
+            } else {
+                log.warn("Reservation for order {} failed and was rolled back ({} line(s) undone)",
+                        v("orderId", reservationRequestDto.getOrderId()), created.size(), ex);
+            }
             throw ex;
         }
 
+        log.info("Stock reserved for order {} ({} item(s))",
+                v("orderId", reservationRequestDto.getOrderId()), created.size());
         return buildResponse(reservationRequestDto.getOrderId(), created);
     }
 
     @Override
     public ReservationResponseDto confirm(String orderId) {
-        log.info("Confirm reservations request for order {}", orderId);
+        log.debug("Confirm reservations request for order {}", orderId);
 
         List<StockReservation> reservations = findOrThrow(orderId);
         reservations.forEach(stockReservation -> {
@@ -89,14 +99,14 @@ public class InventoryServiceImpl implements InventoryService {
         });
 
         stockReservationRepository.saveAll(reservations);
-        log.info("Order {} confirmed ({} item(s))", orderId, reservations.size());
+        log.info("Reservations of order {} confirmed ({} item(s))", v("orderId", orderId), reservations.size());
 
         return buildResponse(orderId, reservations);
     }
 
     @Override
     public ReservationResponseDto release(String orderId) {
-        log.info("Release reservations request for order {}", orderId);
+        log.debug("Release reservations request for order {}", orderId);
 
         List<StockReservation> reservations = findOrThrow(orderId);
         for (StockReservation stockReservation : reservations) {
@@ -107,7 +117,7 @@ public class InventoryServiceImpl implements InventoryService {
         }
 
         stockReservationRepository.saveAll(reservations);
-        log.info("Order {} released ({} item(s))", orderId, reservations.size());
+        log.info("Reservations of order {} released ({} item(s))", v("orderId", orderId), reservations.size());
 
         return buildResponse(orderId, reservations);
     }
@@ -143,7 +153,7 @@ public class InventoryServiceImpl implements InventoryService {
             rollback(created);
             log.warn("Concurrent duplicate reserve for order {} product {} - "
                     + "another request already won the race, returning its result",
-                    orderId, reservationItemDto.getProductId());
+                    v("orderId", orderId), v("productId", reservationItemDto.getProductId()));
             List<StockReservation> winner = stockReservationRepository.findByOrderId(orderId);
             return Optional.of(buildResponse(orderId, winner));
         }

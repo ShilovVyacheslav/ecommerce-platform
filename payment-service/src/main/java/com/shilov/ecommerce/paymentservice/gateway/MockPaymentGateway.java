@@ -33,6 +33,6 @@ public class MockPaymentGateway implements PaymentGateway {
 
     @Override
     public void refund(String providerReference) {
-        log.info("Mock refund issued for provider reference: {}", providerReference);
+        log.debug("Mock refund issued for provider reference {}", providerReference);
     }
 }

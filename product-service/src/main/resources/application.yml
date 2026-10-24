@@ -24,6 +24,9 @@ eureka:
       defaultZone: ${EUREKA_URL}
 
 management:
+  tracing:
+    sampling:
+      probability: ${TRACING_SAMPLING_PROBABILITY:0.1}
   endpoints:
     web:
       exposure:
