@@ -19,7 +19,9 @@ import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.context.annotation.Configuration;
 
 import java.net.SocketTimeoutException;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.Base64;
 import java.util.UUID;
 
 import static com.shilov.ecommerce.constants.Constants.CORRELATION_ID_MDC_KEY;
@@ -32,7 +34,8 @@ import static org.awaitility.Awaitility.await;
 public class LogbackBaseConfigTest {
 
     private static final String SERVICE_NAME = "logging-template-test";
-    private static final String JWT = "eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJhZG1pbiIsImlkIjoxfQ.c2lnbmF0dXJlLXNpZ25hdHVyZQ";
+    private static final String JWT = String.join(".",
+            base64Url("{\"alg\":\"RS256\"}"), base64Url("{\"sub\":\"admin\",\"id\":1}"), base64Url("signature-signature"));
 
     private static final Logger log = LoggerFactory.getLogger(LogbackBaseConfigTest.class);
 
@@ -158,6 +161,10 @@ public class LogbackBaseConfigTest {
                 .findFirst()
                 .orElseThrow();
         return objectMapper.readTree(line);
+    }
+
+    private static String base64Url(String value) {
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(value.getBytes(StandardCharsets.UTF_8));
     }
 
     @Configuration(proxyBeanMethods = false)
