@@ -62,7 +62,6 @@ dependencies {
     testImplementation("org.testcontainers:postgresql")
     testImplementation("org.testcontainers:kafka")
     testImplementation("org.wiremock:wiremock-standalone:3.13.1")
-    testImplementation("io.grpc:grpc-inprocess")
     testImplementation("org.awaitility:awaitility")
 
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
