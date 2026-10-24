@@ -38,6 +38,7 @@
 - **Rate Limiting** — Redis-backed distributed rate limiter at the API gateway
 - **Ledger** — double-entry accounting in payment-service, balanced debit/credit entries
 - **Prometheus + Grafana** — metrics across all services, including custom business metrics
+- **Structured logging** — JSON logs with `correlationId`, `traceId` and `action` propagated across HTTP, gRPC and Kafka, shipped Vector → Kafka → Loki ([logging standard](docs/logging.md))
 - **Kubernetes** — full manifests, StatefulSets for Mongo/Kafka/Postgres, Ingress, scripted secrets
 
 ---
@@ -118,6 +119,13 @@ docker compose --env-file .env.docker up -d notification-service
 **Monitoring** 
 - Prometheus: http://localhost:9090
 - Grafana: http://localhost:3000 (`admin` / `GRAFANA_ADMIN_PASSWORD` from `.env.docker`)
+
+**Logs (optional)** — starts Vector, Loki and the `platform-logs` Kafka topic (+~1 GB RAM):
+```bash
+docker compose --env-file .env.docker --profile logging up -d
+```
+Grafana → *ecommerce-platform · Logs*: search by service, level, text or `correlationId` (returned to every client
+in the `X-Correlation-Id` response header). Without the profile, `docker compose logs <service>` shows the same JSON lines.
 
 **Shut down:**
 
@@ -406,6 +414,10 @@ kubectl get pods -n ecommerce -w
 kubectl apply -f k8s/monitoring/
 kubectl wait --for=condition=ready pod -l app=prometheus -n ecommerce --timeout=120s
 kubectl wait --for=condition=ready pod -l app=grafana -n ecommerce --timeout=120s
+
+# optional: log pipeline (Vector DaemonSet -> Kafka -> Vector -> Loki)
+kubectl apply -f k8s/logging/
+kubectl wait --for=condition=complete job/kafka-logs-topic -n ecommerce --timeout=180s
 ```
 Wait until everything shows `1/1 Running`, then `Ctrl+C`.
 
