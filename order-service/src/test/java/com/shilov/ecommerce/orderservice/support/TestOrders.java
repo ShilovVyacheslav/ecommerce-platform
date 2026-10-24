@@ -1,10 +1,13 @@
 package com.shilov.ecommerce.orderservice.support;
 
+import com.shilov.ecommerce.orderservice.dto.OrderCreateDto;
+import com.shilov.ecommerce.orderservice.dto.OrderItemCreateDto;
 import com.shilov.ecommerce.orderservice.entity.Order;
 import com.shilov.ecommerce.orderservice.entity.OrderItem;
 import com.shilov.ecommerce.orderservice.enums.OrderStatus;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.UUID;
 
 public final class TestOrders {
@@ -43,6 +46,29 @@ public final class TestOrders {
         order.addItem(item(MOUSE_ID, MOUSE_NAME, MOUSE_QUANTITY, MOUSE_UNIT_PRICE));
         order.addItem(item(HUB_ID, HUB_NAME, HUB_QUANTITY, HUB_UNIT_PRICE));
         return order;
+    }
+
+    public static Order unsaved(OrderStatus orderStatus) {
+        Order order = created();
+        order.setId(null);
+        order.setStatus(orderStatus);
+        return order;
+    }
+
+    public static OrderCreateDto createRequest() {
+        return OrderCreateDto.builder()
+                .items(List.of(
+                        requestItem(KEYBOARD_ID, KEYBOARD_QUANTITY),
+                        requestItem(MOUSE_ID, MOUSE_QUANTITY),
+                        requestItem(HUB_ID, HUB_QUANTITY)))
+                .build();
+    }
+
+    private static OrderItemCreateDto requestItem(String productId, int productQuantity) {
+        return OrderItemCreateDto.builder()
+                .productId(productId)
+                .quantity(productQuantity)
+                .build();
     }
 
     private static OrderItem item(String productId, String productName,
